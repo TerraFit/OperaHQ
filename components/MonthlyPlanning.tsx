@@ -53,13 +53,14 @@ export default function MonthlyPlanning() {
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   
-  const getDaysArray = () => {
-    const days = [];
+  // Added explicit return type to getDaysArray to prevent 'unknown' inference
+  const getDaysArray = (): Date[] => {
+    const daysArr: Date[] = [];
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
-      days.push(d);
+      daysArr.push(d);
     }
-    return days;
+    return daysArr;
   };
 
   const days = getDaysArray();
@@ -119,8 +120,8 @@ export default function MonthlyPlanning() {
     setNewEvent({ title: '', date: '', type: 'function' });
   };
 
-  // Group employees by department
-  const groupedEmployees = useMemo(() => {
+  // Group employees by department - Added explicit generic to useMemo
+  const groupedEmployees = useMemo<Record<string, Employee[]>>(() => {
     const groups: Record<string, Employee[]> = {};
     employees.forEach(emp => {
       const dept = emp.department || 'General';
@@ -142,7 +143,7 @@ export default function MonthlyPlanning() {
 
   const StaffDirectory = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in">
-        {employees.map((emp) => (
+        {employees.map((emp: Employee) => (
           <div key={emp.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
             <div className="p-6">
               <div className="flex items-center gap-4 mb-4">
@@ -251,7 +252,7 @@ export default function MonthlyPlanning() {
                <thead>
                  <tr>
                    <th className="p-3 border border-gray-200 bg-gray-50 min-w-[200px] sticky left-0 z-10 text-left font-bold text-gray-700">Staff Member</th>
-                   {days.map(d => (
+                   {days.map((d: Date) => (
                      <th key={d.toISOString()} className={`p-1 border border-gray-200 bg-gray-50 min-w-[36px] ${
                         d.getDay() === 0 || d.getDay() === 6 ? 'bg-gray-100' : ''
                      }`}>
@@ -262,7 +263,8 @@ export default function MonthlyPlanning() {
                  </tr>
                </thead>
                <tbody>
-                 {Object.entries(groupedEmployees).map(([dept, staff]) => (
+                 {/* Explicitly typed the staff array in the map to ensure .map works correctly */}
+                 {Object.entries(groupedEmployees).map(([dept, staff]: [string, Employee[]]) => (
                    <React.Fragment key={dept}>
                      {/* Department Header */}
                      <tr>
@@ -270,7 +272,7 @@ export default function MonthlyPlanning() {
                          {dept}
                        </td>
                      </tr>
-                     {staff.map(emp => (
+                     {staff.map((emp: Employee) => (
                        <tr key={emp.id} className="hover:bg-gray-50">
                          <td className="p-2 border border-gray-200 bg-white text-left font-medium text-gray-900 sticky left-0 z-10 whitespace-nowrap flex items-center gap-2 h-10">
                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600">
@@ -278,7 +280,7 @@ export default function MonthlyPlanning() {
                            </div>
                            {emp.firstName} {emp.lastName}
                          </td>
-                         {days.map(d => {
+                         {days.map((d: Date) => {
                            const dateStr = formatDate(d);
                            const entry = getRosterEntry(emp.id, dateStr);
                            const dayEvents = getDayEvents(dateStr);
@@ -325,7 +327,7 @@ export default function MonthlyPlanning() {
       {/* SHIFT SELECTOR POPUP */}
       {selectedCell && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setSelectedCell(null)}>
-           <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+           <div className="bg-white rounded-xl shadow-xl p-4 w-full max-sm animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
               <h3 className="font-bold text-gray-900 mb-4 text-center">Select Shift for {selectedCell.date}</h3>
               <div className="grid grid-cols-3 gap-3">
                  {Object.values(ROSTER_LEGEND).map(item => (

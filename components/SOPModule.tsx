@@ -24,7 +24,8 @@ import {
   BrainCircuit,
   Users,
   ExternalLink,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 
 interface SOPCardProps {
@@ -71,7 +72,6 @@ const SOPCard: React.FC<SOPCardProps> = ({ sop, statusConfig, onClick }) => {
   );
 };
 
-// Request Card for Management View
 const RequestCard: React.FC<{ request: SOPCreationRequest }> = ({ request }) => {
     const visual = DEPARTMENT_VISUALS[request.department] || DEPARTMENT_VISUALS['general'];
     
@@ -97,7 +97,7 @@ const RequestCard: React.FC<{ request: SOPCreationRequest }> = ({ request }) => 
                     <h3 className="font-bold text-gray-900">{request.title}</h3>
                 </div>
                 <div className="text-gray-400">
-                    {request.method === 'ai_generated' && <BrainCircuit size={18} className="text-purple-500" />}
+                    {request.method === 'ai_generated' && <Sparkles size={18} className="text-purple-500" />}
                     {request.method === 'internal' && <Users size={18} className="text-blue-500" />}
                     {request.method === 'external' && <ExternalLink size={18} className="text-orange-500" />}
                 </div>
@@ -110,11 +110,6 @@ const RequestCard: React.FC<{ request: SOPCreationRequest }> = ({ request }) => 
                 {request.assignedToName && (
                     <div className="flex items-center gap-2 font-medium text-gray-700">
                         <Users size={12} /> Assigned: {request.assignedToName}
-                    </div>
-                )}
-                {request.deadline && (
-                    <div className="flex items-center gap-2 text-red-500 font-medium">
-                        <AlertCircle size={12} /> Due: {new Date(request.deadline).toLocaleDateString()}
                     </div>
                 )}
             </div>
@@ -132,6 +127,7 @@ const RequestCard: React.FC<{ request: SOPCreationRequest }> = ({ request }) => 
 
 export default function SOPModule() {
   const { user } = useContext(AppContext);
+  const [librarySops, setLibrarySops] = useState<SOP[]>(MOCK_SOPS);
   const [attempts, setAttempts] = useState<SOPAttempt[]>(MOCK_SOP_ATTEMPTS);
   const [requests, setRequests] = useState<SOPCreationRequest[]>(MOCK_SOP_REQUESTS);
   
@@ -165,7 +161,7 @@ export default function SOPModule() {
 
   // Derived Data
   const userAttempts = attempts.filter(a => a.userId === user?.id);
-  const filteredSOPs = MOCK_SOPS.filter(s => filterDept === 'all' || s.department === filterDept || s.department === 'all');
+  const filteredSOPs = librarySops.filter(s => filterDept === 'all' || s.department === filterDept || s.department === 'all');
   const filteredRequests = requests.filter(r => filterDept === 'all' || r.department === filterDept);
 
   // Permissions
@@ -205,7 +201,6 @@ export default function SOPModule() {
       const result = SOPService.gradeTest(selectedSOP, answers);
       setTestResult(result);
 
-      // Save Attempt
       const newAttempt: SOPAttempt = {
           id: `att-${Date.now()}`,
           sopId: selectedSOP.id,
@@ -246,18 +241,24 @@ export default function SOPModule() {
       return { status: 'certified', label: 'Certified', color: 'text-green-600', bg: 'bg-green-50' };
   };
 
-  const handleCreateRequest = (req: SOPCreationRequest) => {
+  const handleCreateRequest = (req: SOPCreationRequest, generatedSop?: SOP) => {
       setRequests([req, ...requests]);
+      if (generatedSop) {
+          // Add formal department code
+          const deptSops = librarySops.filter(s => s.department === generatedSop.department);
+          const nextNum = deptSops.length + 1;
+          const code = `ZL-SOP-${generatedSop.department.substring(0, 3).toUpperCase()}-${nextNum.toString().padStart(3, '0')}`;
+          
+          setLibrarySops([{ ...generatedSop, code }, ...librarySops]);
+          alert("SOP Published successfully!");
+      }
       setShowCreateModal(false);
   };
-
-  // --- RENDER ---
 
   if (viewMode === 'reading' && selectedSOP) {
       return (
           <div className="fixed inset-0 bg-gray-900 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
-                  {/* Header */}
                   <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                       <div>
                           <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -272,32 +273,23 @@ export default function SOPModule() {
                       <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">×</button>
                   </div>
 
-                  {/* Content with Scroll Tracking */}
                   <div className="flex-1 overflow-y-auto p-8 relative" onScroll={handleScroll}>
                       <div className="prose max-w-none">
-                          <h1>{selectedSOP.title}</h1>
-                          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 my-4">
-                              <p className="font-bold text-blue-900">Summary</p>
-                              <p className="text-blue-800 text-sm">Standard Operating Procedure for {selectedSOP.department}. Compliance is mandatory.</p>
+                          <h1 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">{selectedSOP.title}</h1>
+                          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 my-4 rounded-r-lg">
+                              <p className="font-bold text-blue-900 mb-1">Scope & Objective</p>
+                              <p className="text-blue-800 text-sm">{selectedSOP.summary || "This procedure outlines the mandatory compliance standards for the department."}</p>
                           </div>
                           
-                          {/* Mock Content Generation */}
-                          <div dangerouslySetInnerHTML={{ __html: selectedSOP.contentHtml }} />
-                          <div className="space-y-4 text-gray-600">
-                              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
-                              <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-                              <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
-                              <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
-                              <div className="h-64 bg-gray-100 rounded flex items-center justify-center text-gray-400 font-bold border-2 border-dashed border-gray-200">
-                                  Diagram / Video Placeholder
-                              </div>
-                              <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
-                              <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.</p>
+                          <div className="sop-content mt-8" dangerouslySetInnerHTML={{ __html: selectedSOP.contentHtml }} />
+                          
+                          {/* Disclaimer for generated content */}
+                          <div className="mt-12 pt-6 border-t border-gray-100 text-[10px] text-gray-400 italic">
+                              Generated by Zebra Lodge Intelligence Module. Compliance strictly enforced as per SOP 0.1.
                           </div>
                       </div>
                   </div>
 
-                  {/* Footer with Progress & Actions */}
                   <div className="border-t border-gray-200 p-4 bg-white flex justify-between items-center">
                       <div className="flex items-center gap-4 flex-1">
                           <div className="w-full max-w-xs bg-gray-200 rounded-full h-2.5">
@@ -330,7 +322,6 @@ export default function SOPModule() {
       return (
           <div className="fixed inset-0 bg-gray-900 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-                  {/* Test Header */}
                   <div className="bg-blue-600 px-6 py-4 text-white flex justify-between items-center">
                       <div>
                           <h2 className="text-xl font-bold">{selectedSOP.title} Assessment</h2>
@@ -341,7 +332,6 @@ export default function SOPModule() {
                       </div>
                   </div>
 
-                  {/* Result View */}
                   {testResult ? (
                       <div className="p-10 text-center flex flex-col items-center justify-center flex-1">
                           <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${testResult.passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -363,11 +353,10 @@ export default function SOPModule() {
                           )}
 
                           <button onClick={handleClose} className="bg-gray-900 text-white px-8 py-3 rounded-lg font-bold hover:bg-black transition-colors">
-                              Return to Dashboard
+                              Return to Library
                           </button>
                       </div>
                   ) : (
-                      /* Question View */
                       <div className="p-8 flex-1 overflow-y-auto">
                           {selectedSOP.questions.length > 0 ? (
                               <div className="max-w-2xl mx-auto">
@@ -375,7 +364,7 @@ export default function SOPModule() {
                                       <span>Question {currentQuestion + 1} of {selectedSOP.questions.length}</span>
                                   </div>
                                   
-                                  <h3 className="text-xl font-bold text-gray-900 mb-6">
+                                  <h3 className="text-xl font-bold text-gray-900 mb-6 leading-snug">
                                       {selectedSOP.questions[currentQuestion].question}
                                   </h3>
 
@@ -384,14 +373,14 @@ export default function SOPModule() {
                                           <button
                                               key={idx}
                                               onClick={() => setAnswers({...answers, [currentQuestion]: idx})}
-                                              className={`w-full text-left p-4 rounded-lg border-2 transition-all flex items-center gap-3
+                                              className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3
                                                   ${answers[currentQuestion] === idx 
                                                       ? 'border-blue-500 bg-blue-50 text-blue-800' 
-                                                      : 'border-gray-200 hover:border-gray-300 text-gray-700'}
+                                                      : 'border-gray-100 hover:border-blue-200 text-gray-700 bg-white'}
                                               `}
                                           >
                                               <div className={`w-5 h-5 rounded-full border flex items-center justify-center
-                                                  ${answers[currentQuestion] === idx ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-400'}
+                                                  ${answers[currentQuestion] === idx ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'}
                                               `}>
                                                   {answers[currentQuestion] === idx && <div className="w-2 h-2 bg-white rounded-full" />}
                                               </div>
@@ -402,13 +391,12 @@ export default function SOPModule() {
                               </div>
                           ) : (
                               <div className="text-center text-gray-500 mt-10">
-                                  No questions available for this demo SOP. Auto-pass enabled.
+                                  No questions available. Auto-pass enabled for system legacy records.
                               </div>
                           )}
                       </div>
                   )}
 
-                  {/* Test Footer */}
                   {!testResult && (
                       <div className="border-t border-gray-200 p-4 bg-gray-50 flex justify-between items-center">
                           <button 
@@ -441,7 +429,6 @@ export default function SOPModule() {
       );
   }
 
-  // --- DASHBOARD VIEW ---
   return (
     <div className="space-y-6 animate-in fade-in">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -481,7 +468,6 @@ export default function SOPModule() {
             </div>
         </div>
 
-        {/* DEPARTMENT FILTERS */}
         <div className="flex overflow-x-auto pb-2 gap-2 hide-scrollbar">
             <button 
                 onClick={() => setFilterDept('all')}
@@ -495,10 +481,10 @@ export default function SOPModule() {
                     onClick={() => setFilterDept(dept)}
                     className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors border flex items-center gap-2
                         ${filterDept === dept 
-                            ? 'shadow-md border-transparent' 
+                            ? 'shadow-md border-transparent text-white' 
                             : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}
                     `}
-                    style={filterDept === dept ? { backgroundColor: DEPARTMENT_VISUALS[dept].color, color: 'white' } : {}}
+                    style={filterDept === dept ? { backgroundColor: DEPARTMENT_VISUALS[dept].color } : {}}
                 >
                     <span>{DEPARTMENT_VISUALS[dept].icon}</span>
                     <span className="capitalize">{dept.replace('_', ' ')}</span>
@@ -506,7 +492,6 @@ export default function SOPModule() {
             ))}
         </div>
 
-        {/* CONTENT AREA */}
         {activeTab === 'library' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredSOPs.map(sop => (
@@ -538,7 +523,6 @@ export default function SOPModule() {
             </div>
         )}
 
-        {/* MODALS */}
         {showCreateModal && (
             <SOPCreationModal 
                 onClose={() => setShowCreateModal(false)}
