@@ -1,298 +1,162 @@
 
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { AppContext } from '../App';
-import { MOCK_PLANNING_EVENTS } from '../services/mockData';
-import { UserRole, PlanningEvent, Shift, ChefShiftType, Employee } from '../types';
-import { CHEF_SHIFTS } from '../constants';
-import { ComplianceService } from '../services/complianceService';
 import { 
+  MOCK_ROSTER_ENTRIES, 
+  MOCK_SPECIAL_EVENTS 
+} from '../services/mockData';
+import { 
+  Employee, 
+  RosterEntry, 
+  RosterShiftCode, 
+  SpecialEvent,
+  UserRole 
+} from '../types';
+import { ROSTER_LEGEND } from '../constants';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Plus, 
+  Download, 
+  Printer, 
+  Settings, 
+  Calendar, 
   Users, 
-  Phone, 
-  Mail, 
-  Briefcase, 
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Trash2,
   AlertTriangle,
-  UserPlus,
+  PartyPopper,
   X,
-  CalendarPlus
+  Save
 } from 'lucide-react';
 
-type ViewMode = 'month' | 'week' | 'directory';
-
 export default function MonthlyPlanning() {
-  const { user, employees, setEmployees, shifts, setShifts } = useContext(AppContext);
-  const [activeTab, setActiveTab] = useState<ViewMode>('month');
+  const { user, employees, setEmployees } = useContext(AppContext);
+  const [currentDate, setCurrentDate] = useState(new Date());
   
   // Data State
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<PlanningEvent[]>(MOCK_PLANNING_EVENTS);
+  const [roster, setRoster] = useState<RosterEntry[]>(MOCK_ROSTER_ENTRIES);
+  const [events, setEvents] = useState<SpecialEvent[]>(MOCK_SPECIAL_EVENTS);
+  const [activeTab, setActiveTab] = useState<'roster' | 'directory'>('roster');
 
   // Modal State
   const [showEventModal, setShowEventModal] = useState(false);
-  const [showShiftModal, setShowShiftModal] = useState(false);
-  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
-  
-  // Forms
-  const [newEvent, setNewEvent] = useState<Partial<PlanningEvent>>({ title: '', date: '', type: 'meeting' });
-  const [shiftForm, setShiftForm] = useState<{
-    id?: string;
-    employeeId: string;
-    date: string;
-    type: ChefShiftType;
-  }>({
-    employeeId: '',
-    date: new Date().toISOString().split('T')[0],
-    type: 'split'
+  const [newEvent, setNewEvent] = useState<Partial<SpecialEvent>>({ 
+    title: '', 
+    date: '', 
+    type: 'function',
+    startTime: '',
+    endTime: ''
   });
-  
-  // New Employee Form
-  const initialEmployeeForm: Partial<Employee> = {
-    firstName: '',
-    lastName: '',
-    email: '',
-    role: UserRole.STAFF,
-    department: 'Kitchen',
-    jobTitle: 'Chef',
-    status: 'active',
-    dateStarted: new Date().toISOString().split('T')[0],
-    idNumber: '',
-    phone: '',
-    emergencyContactName: '',
-    emergencyContactPhone: ''
-  };
-  const [employeeForm, setEmployeeForm] = useState<Partial<Employee>>(initialEmployeeForm);
 
-  const [shiftError, setShiftError] = useState<string[]>([]);
-
-  // Permissions
-  const canEdit = user?.role === UserRole.SUPER_ADMIN || 
-                  user?.role === UserRole.GENERAL_MANAGER || 
-                  user?.role === UserRole.DEPARTMENT_MANAGER;
+  const [selectedCell, setSelectedCell] = useState<{staffId: string, date: string} | null>(null);
 
   // --- HELPERS ---
 
-  const getEmployee = (id: string) => employees.find(e => e.id === id);
-
-  const handlePrev = () => {
-    if (activeTab === 'week') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(newDate.getDate() - 7);
-      setCurrentDate(newDate);
-    } else {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-    }
-  };
-
-  const handleNext = () => {
-    if (activeTab === 'week') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(newDate.getDate() + 7);
-      setCurrentDate(newDate);
-    } else {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-    }
-  };
-
-  const getWeekRange = (date: Date) => {
-    const start = new Date(date);
-    start.setDate(start.getDate() - start.getDay()); // Sunday
+  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+  
+  const getDaysArray = () => {
     const days = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
       days.push(d);
     }
     return days;
   };
 
-  // --- ACTIONS ---
+  const days = getDaysArray();
+
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const getRosterEntry = (staffId: string, dateStr: string) => {
+    return roster.find(r => r.staffId === staffId && r.date === dateStr);
+  };
+
+  const getDayEvents = (dateStr: string) => {
+    return events.filter(e => e.date === dateStr);
+  };
+
+  const handleSetShift = (code: RosterShiftCode) => {
+    if (!selectedCell) return;
+    
+    // Remove existing if any
+    const newRoster = roster.filter(r => !(r.staffId === selectedCell.staffId && r.date === selectedCell.date));
+    
+    // Add new
+    newRoster.push({
+      id: `ros-${Date.now()}`,
+      staffId: selectedCell.staffId,
+      date: selectedCell.date,
+      code
+    });
+    
+    setRoster(newRoster);
+    setSelectedCell(null);
+  };
 
   const handleAddEvent = () => {
     if (!newEvent.title || !newEvent.date) return;
-    const evt: PlanningEvent = {
-      id: `evt-${Date.now()}`,
-      title: newEvent.title!,
-      date: newEvent.date!,
-      type: newEvent.type as any || 'meeting',
-      createdBy: user!.id
+    const evt: SpecialEvent = {
+        id: `evt-${Date.now()}`,
+        title: newEvent.title!,
+        date: newEvent.date!,
+        type: newEvent.type as any,
+        status: 'confirmed',
+        startTime: newEvent.startTime,
+        endTime: newEvent.endTime,
+        description: newEvent.description
     };
     setEvents([...events, evt]);
     setShowEventModal(false);
-    setNewEvent({ title: '', date: '', type: 'meeting' });
+    setNewEvent({ title: '', date: '', type: 'function' });
   };
 
-  const handleSaveShift = () => {
-    setShiftError([]);
-    
-    // 1. Basic Form Validation
-    if (!shiftForm.employeeId) {
-      setShiftError(["Please select an employee."]);
-      return;
-    }
-    if (!shiftForm.date) {
-      setShiftError(["Please select a date."]);
-      return;
-    }
-
-    const config = CHEF_SHIFTS[shiftForm.type];
-    
-    // 2. Construct proposed shift
-    const proposedShift: Shift = {
-      id: shiftForm.id || `sh-${Date.now()}`,
-      employeeId: shiftForm.employeeId,
-      date: shiftForm.date,
-      type: shiftForm.type,
-      start: `${shiftForm.date}T${config.startTime}:00`,
-      end: `${shiftForm.date}T${config.endTime}:00`,
-      totalHours: config.totalHours,
-      status: 'scheduled',
-      breakTaken: false
-    };
-
-    // 3. Filter out the shift being edited from existing shifts to avoid self-collision
-    const otherShifts = shifts.filter(s => s.id !== proposedShift.id);
-    
-    // 4. Filter for specific employee
-    const employeeShifts = otherShifts.filter(s => s.employeeId === shiftForm.employeeId);
-
-    // 5. CRITICAL: Filter for the SPECIFIC WEEK of the proposed shift
-    // Calculating weekly hours requires us to sum only the hours in the relevant week window.
-    // We assume Sunday is the start of the week.
-    const [y, m, d] = proposedShift.date.split('-').map(Number);
-    const pDate = new Date(y, m - 1, d); // Local midnight
-    
-    const startOfWeek = new Date(pDate);
-    startOfWeek.setDate(pDate.getDate() - pDate.getDay()); // Sunday
-    startOfWeek.setHours(0,0,0,0);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 7); // Next Sunday
-
-    const currentWeekShifts = employeeShifts.filter(s => {
-        const [sy, sm, sd] = s.date.split('-').map(Number);
-        const sDate = new Date(sy, sm - 1, sd);
-        return sDate >= startOfWeek && sDate < endOfWeek;
+  // Group employees by department
+  const groupedEmployees = useMemo(() => {
+    const groups: Record<string, Employee[]> = {};
+    employees.forEach(emp => {
+      const dept = emp.department || 'General';
+      if (!groups[dept]) groups[dept] = [];
+      groups[dept].push(emp);
     });
-    
-    // 6. Validate against Labor Laws
-    const check = ComplianceService.validateSchedule(proposedShift, currentWeekShifts);
-    
-    if (!check.valid) {
-      setShiftError(check.errors);
-      return;
-    }
+    return groups;
+  }, [employees]);
 
-    setShifts([...otherShifts, proposedShift]);
-    setShowShiftModal(false);
-  };
+  // Filter events for current month
+  const monthlyEvents = useMemo(() => {
+    return events.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear();
+    });
+  }, [events, currentDate]);
 
-  const handleDeleteShift = (id: string) => {
-    if(confirm('Are you sure you want to delete this shift?')) {
-      setShifts(shifts.filter(s => s.id !== id));
-      setShowShiftModal(false);
-    }
-  };
-
-  const openShiftModal = (dateStr: string, existingShift?: Shift) => {
-    if (!canEdit) return;
-    setShiftError([]);
-    if (existingShift) {
-      setShiftForm({
-        id: existingShift.id,
-        employeeId: existingShift.employeeId,
-        date: existingShift.date,
-        type: existingShift.type
-      });
-    } else {
-      setShiftForm({
-        employeeId: employees[0]?.id || '',
-        date: dateStr,
-        type: 'split'
-      });
-    }
-    setShowShiftModal(true);
-  };
-
-  const handleCreateEmployee = () => {
-    const newId = `emp-${Date.now()}`;
-    const newEmployee: Employee = {
-      ...employeeForm,
-      id: newId,
-      // Default values
-      photoUrl: '',
-      birthday: '1990-01-01', // Default for demo
-      clothingSize: '',
-      shoeSize: '',
-      uniformSize: '',
-      warnings: 0,
-      praises: 0,
-      guestCompliments: 0,
-      guestComplaints: 0,
-      absencesCount: 0,
-      lateArrivalsCount: 0,
-      holidaysEarned: 0,
-      holidaysTaken: 0,
-      overtimeBalance: 0
-    } as Employee;
-
-    setEmployees([...employees, newEmployee]);
-    setShowEmployeeModal(false);
-    setEmployeeForm(initialEmployeeForm);
-  };
-
-  // --- SUB-COMPONENTS ---
+  // --- RENDERERS ---
 
   const StaffDirectory = () => (
-    <div className="space-y-4 animate-in fade-in">
-      {canEdit && (
-        <div className="flex justify-end gap-3">
-           <button 
-            onClick={() => openShiftModal(new Date().toISOString().split('T')[0])}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-sm"
-          >
-            <CalendarPlus size={18} /> New Shift
-          </button>
-          <button 
-            onClick={() => setShowEmployeeModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm"
-          >
-            <UserPlus size={18} /> Add New Employee
-          </button>
-        </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in">
         {employees.map((emp) => (
           <div key={emp.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
             <div className="p-6">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
-                  {emp.photoUrl ? (
-                    <img src={emp.photoUrl} alt="profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-gray-500 font-bold text-lg">{emp.firstName[0]}{emp.lastName[0]}</span>
-                  )}
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 font-bold text-gray-500">
+                  {emp.firstName[0]}{emp.lastName[0]}
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900">{emp.firstName} {emp.lastName}</h3>
-                  <p className="text-sm text-blue-600 font-medium flex items-center gap-1">
-                    <Briefcase size={12} /> {emp.jobTitle}
-                  </p>
+                  <p className="text-sm text-blue-600 font-medium">{emp.jobTitle}</p>
                 </div>
               </div>
-              
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                  <Phone size={16} className="text-gray-400" />
-                  <span>{emp.phone || 'N/A'}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                  <Mail size={16} className="text-gray-400" />
-                  <span className="truncate">{emp.email || 'N/A'}</span>
-                </div>
+              <div className="text-sm text-gray-600 space-y-1">
+                 <div>{emp.email}</div>
+                 <div>{emp.phone}</div>
               </div>
             </div>
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
@@ -303,393 +167,253 @@ export default function MonthlyPlanning() {
             </div>
           </div>
         ))}
-      </div>
     </div>
   );
-
-  const DayCell = ({ date, isCurrentMonth = true }: { date: Date, isCurrentMonth?: boolean, key?: React.Key }) => {
-    // Fix timezone offset for string comparison
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    
-    const dayEvents = events.filter(e => e.date === dateStr);
-    const dayShifts = shifts.filter(s => s.date === dateStr);
-    const isToday = new Date().toDateString() === date.toDateString();
-
-    return (
-      <div 
-        className={`min-h-[120px] border border-gray-100 p-2 transition-colors relative group
-          ${isCurrentMonth ? 'bg-white hover:bg-gray-50' : 'bg-gray-50/50 text-gray-400'}
-        `}
-        onClick={() => {
-          // Quick add shift if manager clicks empty space
-          if (canEdit) openShiftModal(dateStr);
-        }}
-      >
-        <div className="flex justify-between items-start mb-1">
-          <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : ''}`}>
-            {date.getDate()}
-          </span>
-          {canEdit && (
-             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setNewEvent({...newEvent, date: dateStr}); setShowEventModal(true); }}
-                  className="p-1 hover:bg-blue-100 text-blue-600 rounded"
-                  title="Add Event"
-                >
-                  <Plus size={14} />
-                </button>
-             </div>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          {/* Events */}
-          {dayEvents.map(evt => (
-            <div key={evt.id} className={`text-xs px-1.5 py-0.5 rounded border truncate font-medium
-              ${evt.type === 'meeting' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 
-                evt.type === 'deadline' ? 'bg-red-50 border-red-200 text-red-700' :
-                'bg-gray-100 border-gray-200 text-gray-700'}
-            `}>
-              {evt.title}
-            </div>
-          ))}
-
-          {/* Shifts */}
-          {dayShifts.map(shift => {
-            const emp = getEmployee(shift.employeeId);
-            return (
-              <div 
-                key={shift.id} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openShiftModal(dateStr, shift);
-                }}
-                className={`text-xs px-1.5 py-1 rounded border flex items-center gap-1 cursor-pointer hover:opacity-80
-                  ${shift.employeeId === user?.id ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}
-                `}
-              >
-                <Clock size={10} />
-                <span className="font-bold">{emp?.firstName}</span>
-                <span className="opacity-75 hidden sm:inline">: {shift.type}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const CalendarHeader = () => (
-    <div className="grid grid-cols-7 text-center border-b border-gray-200 bg-gray-100 text-xs font-semibold text-gray-500 py-2 uppercase">
-      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-    </div>
-  );
-
-  const MonthView = () => {
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-    const days = [];
-
-    // Padding
-    for (let i = 0; i < firstDay; i++) {
-      const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0 - (firstDay - 1 - i));
-      days.push(<DayCell key={`prev-${i}`} date={prevDate} isCurrentMonth={false} />);
-    }
-    // Days
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
-      days.push(<DayCell key={i} date={date} />);
-    }
-
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in">
-        <CalendarHeader />
-        <div className="grid grid-cols-7 bg-gray-200 gap-px">
-          {days}
-        </div>
-      </div>
-    );
-  };
-
-  const WeekView = () => {
-    const weekDates = getWeekRange(currentDate);
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in">
-        <CalendarHeader />
-        <div className="grid grid-cols-7 bg-gray-200 gap-px">
-          {weekDates.map((date, i) => (
-             <div key={i} className="bg-white min-h-[400px]">
-               <DayCell date={date} />
-             </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // --- RENDER ---
-
-  const monthLabel = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-6">
       {/* Header Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Planning & Schedule</h2>
-          <p className="text-gray-500 text-sm">Manage shifts, events, and staff overview.</p>
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+           <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft size={20} /></button>
+           <h2 className="text-xl font-bold text-gray-900 w-48 text-center">
+             {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+           </h2>
+           <button onClick={handleNextMonth} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={20} /></button>
         </div>
 
-        <div className="flex items-center gap-4">
-           {canEdit && activeTab !== 'directory' && (
-             <button 
-                onClick={() => openShiftModal(new Date().toISOString().split('T')[0])}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-700 shadow-sm text-sm"
-              >
-                <CalendarPlus size={16} /> Add Shift
-              </button>
-           )}
+        <div className="flex gap-2">
+           <button 
+             onClick={() => setActiveTab('roster')} 
+             className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'roster' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+           >
+             Roster
+           </button>
+           <button 
+             onClick={() => setActiveTab('directory')} 
+             className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'directory' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+           >
+             Directory
+           </button>
+        </div>
 
-          {activeTab !== 'directory' && (
-            <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-              <button onClick={handlePrev} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all"><ChevronLeft size={18} /></button>
-              <span className="px-4 font-bold text-gray-700 min-w-[140px] text-center">{monthLabel}</span>
-              <button onClick={handleNext} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all"><ChevronRight size={18} /></button>
-            </div>
-          )}
-
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            <button 
-              onClick={() => setActiveTab('month')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'month' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Month
-            </button>
-            <button 
-              onClick={() => setActiveTab('week')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'week' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Week
-            </button>
-            <button 
-              onClick={() => setActiveTab('directory')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'directory' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Staff
-            </button>
-          </div>
+        <div className="flex gap-2">
+           <button onClick={() => setShowEventModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-bold text-sm">
+             <Plus size={16} /> Add Event
+           </button>
+           <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg border border-gray-200"><Printer size={18} /></button>
+           <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg border border-gray-200"><Download size={18} /></button>
+           <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg border border-gray-200"><Settings size={18} /></button>
         </div>
       </div>
 
       {activeTab === 'directory' ? <StaffDirectory /> : (
-         activeTab === 'month' ? <MonthView /> : <WeekView />
+        <>
+          {/* LEGEND */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap gap-4 items-center text-xs">
+             <span className="font-bold text-gray-500 uppercase">Legend:</span>
+             {Object.values(ROSTER_LEGEND).map((item) => (
+               <div key={item.code} className="flex items-center gap-1.5" title={item.description}>
+                 <span 
+                   className="w-6 h-6 flex items-center justify-center rounded font-bold shadow-sm"
+                   style={{ backgroundColor: item.color, color: item.textColor }}
+                 >
+                   {item.code}
+                 </span>
+                 <span className="text-gray-700 font-medium">{item.name}</span>
+               </div>
+             ))}
+          </div>
+
+          {/* EVENTS BAR */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
+             <h3 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
+               <Calendar size={14} /> Events & Absences this Month
+             </h3>
+             <div className="flex flex-wrap gap-3">
+                {monthlyEvents.map(evt => (
+                    <div key={evt.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium
+                        ${evt.type === 'management_absence' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-200 text-blue-700'}
+                    `}>
+                        {evt.type === 'management_absence' ? <AlertTriangle size={14} /> : <PartyPopper size={14} />}
+                        <span className="font-bold">{new Date(evt.date).getDate()} {new Date(evt.date).toLocaleString('default', {month:'short'})}:</span>
+                        <span>{evt.title}</span>
+                        {evt.startTime && <span className="text-xs opacity-75">({evt.startTime}-{evt.endTime})</span>}
+                    </div>
+                ))}
+                {monthlyEvents.length === 0 && <span className="text-sm text-gray-400 italic">No events scheduled.</span>}
+             </div>
+          </div>
+
+          {/* ROSTER MATRIX */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+             <table className="w-full text-center text-xs border-collapse">
+               <thead>
+                 <tr>
+                   <th className="p-3 border border-gray-200 bg-gray-50 min-w-[200px] sticky left-0 z-10 text-left font-bold text-gray-700">Staff Member</th>
+                   {days.map(d => (
+                     <th key={d.toISOString()} className={`p-1 border border-gray-200 bg-gray-50 min-w-[36px] ${
+                        d.getDay() === 0 || d.getDay() === 6 ? 'bg-gray-100' : ''
+                     }`}>
+                       <div className="font-bold text-gray-800">{d.getDate()}</div>
+                       <div className="text-[10px] text-gray-500 uppercase">{d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0)}</div>
+                     </th>
+                   ))}
+                 </tr>
+               </thead>
+               <tbody>
+                 {Object.entries(groupedEmployees).map(([dept, staff]) => (
+                   <React.Fragment key={dept}>
+                     {/* Department Header */}
+                     <tr>
+                       <td colSpan={days.length + 1} className="p-2 bg-gray-100 border border-gray-200 text-left font-bold text-gray-600 uppercase text-xs tracking-wider sticky left-0">
+                         {dept}
+                       </td>
+                     </tr>
+                     {staff.map(emp => (
+                       <tr key={emp.id} className="hover:bg-gray-50">
+                         <td className="p-2 border border-gray-200 bg-white text-left font-medium text-gray-900 sticky left-0 z-10 whitespace-nowrap flex items-center gap-2 h-10">
+                           <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600">
+                             {emp.firstName[0]}{emp.lastName[0]}
+                           </div>
+                           {emp.firstName} {emp.lastName}
+                         </td>
+                         {days.map(d => {
+                           const dateStr = formatDate(d);
+                           const entry = getRosterEntry(emp.id, dateStr);
+                           const dayEvents = getDayEvents(dateStr);
+                           const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                           
+                           return (
+                             <td 
+                               key={dateStr} 
+                               className={`border border-gray-200 relative p-0 cursor-pointer hover:ring-2 hover:ring-blue-400 hover:z-20 transition-all ${isWeekend && !entry ? 'bg-gray-50' : ''}`}
+                               onClick={() => setSelectedCell({ staffId: emp.id, date: dateStr })}
+                             >
+                               {entry ? (
+                                 <div 
+                                   className="w-full h-10 flex items-center justify-center font-bold shadow-sm"
+                                   style={{ 
+                                     backgroundColor: ROSTER_LEGEND[entry.code].color, 
+                                     color: ROSTER_LEGEND[entry.code].textColor 
+                                   }}
+                                   title={`${ROSTER_LEGEND[entry.code].name}${entry.notes ? ': ' + entry.notes : ''}`}
+                                 >
+                                   {entry.code}
+                                 </div>
+                               ) : (
+                                 <div className="w-full h-10"></div>
+                               )}
+                               
+                               {/* Event Marker */}
+                               {dayEvents.length > 0 && (
+                                 <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
+                               )}
+                             </td>
+                           );
+                         })}
+                       </tr>
+                     ))}
+                   </React.Fragment>
+                 ))}
+               </tbody>
+             </table>
+          </div>
+        </>
       )}
 
-      {/* --- MODALS --- */}
+      {/* SHIFT SELECTOR POPUP */}
+      {selectedCell && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setSelectedCell(null)}>
+           <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+              <h3 className="font-bold text-gray-900 mb-4 text-center">Select Shift for {selectedCell.date}</h3>
+              <div className="grid grid-cols-3 gap-3">
+                 {Object.values(ROSTER_LEGEND).map(item => (
+                   <button
+                     key={item.code}
+                     onClick={() => handleSetShift(item.code)}
+                     className="flex flex-col items-center justify-center p-3 rounded-lg border hover:shadow-md transition-all"
+                     style={{ borderColor: item.color, backgroundColor: `${item.color}10` }}
+                   >
+                     <span 
+                       className="w-8 h-8 flex items-center justify-center rounded font-bold mb-1 shadow-sm"
+                       style={{ backgroundColor: item.color, color: item.textColor }}
+                     >
+                       {item.code}
+                     </span>
+                     <span className="text-xs font-bold text-gray-700">{item.name}</span>
+                   </button>
+                 ))}
+                 <button 
+                   onClick={() => {
+                     // Clear shift logic
+                     const newRoster = roster.filter(r => !(r.staffId === selectedCell.staffId && r.date === selectedCell.date));
+                     setRoster(newRoster);
+                     setSelectedCell(null);
+                   }}
+                   className="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500"
+                 >
+                   <X size={24} />
+                   <span className="text-xs font-bold mt-1">Clear</span>
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
 
-      {/* Add Planning Event Modal */}
+      {/* ADD EVENT MODAL */}
       {showEventModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold mb-4">Add Planning Event</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input 
-                  type="date" 
-                  value={newEvent.date}
-                  onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input 
-                  type="text" 
-                  value={newEvent.title}
-                  onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select 
-                  value={newEvent.type}
-                  onChange={(e) => setNewEvent({...newEvent, type: e.target.value as any})}
-                  className="w-full p-2 border border-gray-300 rounded"
-                >
-                  <option value="meeting">Meeting</option>
-                  <option value="training">Training</option>
-                  <option value="deadline">Deadline</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button onClick={handleAddEvent} className="flex-1 bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">Save</button>
-              <button onClick={() => setShowEventModal(false)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded hover:bg-gray-200">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manage Shift Modal */}
-      {showShiftModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <Clock className="text-blue-600" /> 
-                {shiftForm.id ? 'Edit Shift' : 'Add Shift'}
-              </h3>
-              {shiftForm.id && (
-                <button 
-                  onClick={() => handleDeleteShift(shiftForm.id!)}
-                  className="text-red-500 hover:bg-red-50 p-2 rounded"
-                  title="Delete Shift"
-                >
-                  <Trash2 size={18} />
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee</label>
-                <select 
-                  value={shiftForm.employeeId}
-                  onChange={(e) => setShiftForm({...shiftForm, employeeId: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded bg-white"
-                >
-                  <option value="">Select Employee</option>
-                  {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input 
-                  type="date" 
-                  value={shiftForm.date}
-                  onChange={(e) => setShiftForm({...shiftForm, date: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Shift Type</label>
-                <select 
-                  value={shiftForm.type}
-                  onChange={(e) => setShiftForm({...shiftForm, type: e.target.value as ChefShiftType})}
-                  className="w-full p-2 border border-gray-300 rounded bg-white"
-                >
-                   {Object.entries(CHEF_SHIFTS).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {key.toUpperCase().replace('_', ' ')} ({config.startTime}-{config.endTime})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Compliance Errors */}
-              {shiftError.length > 0 && (
-                <div className="bg-red-50 p-3 rounded border border-red-200 text-sm text-red-700">
-                  <div className="flex items-center gap-2 font-bold mb-1">
-                    <AlertTriangle size={16} /> Compliance Issues
-                  </div>
-                  <ul className="list-disc list-inside text-xs space-y-1">
-                    {shiftError.map((err, i) => <li key={i}>{err}</li>)}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button 
-                onClick={handleSaveShift} 
-                className="flex-1 bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 shadow-sm"
-              >
-                {shiftForm.id ? 'Update Shift' : 'Create Shift'}
-              </button>
-              <button 
-                onClick={() => setShowShiftModal(false)} 
-                className="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE EMPLOYEE MODAL (Manager Only) */}
-      {showEmployeeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold flex items-center gap-2 text-gray-900">
-                  <UserPlus className="text-blue-600" /> New Employee Onboarding
-                </h3>
-                <button onClick={() => setShowEmployeeModal(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
-                </button>
+                <h3 className="text-lg font-bold text-gray-900">Add Special Event</h3>
+                <button onClick={() => setShowEventModal(false)}><X className="text-gray-400 hover:text-gray-600" /></button>
              </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                   <h4 className="text-sm font-bold text-gray-500 uppercase border-b pb-2">Basic Info</h4>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">First Name</label>
-                     <input type="text" className="w-full p-2 border rounded" value={employeeForm.firstName} onChange={e => setEmployeeForm({...employeeForm, firstName: e.target.value})} />
-                   </div>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">Last Name</label>
-                     <input type="text" className="w-full p-2 border rounded" value={employeeForm.lastName} onChange={e => setEmployeeForm({...employeeForm, lastName: e.target.value})} />
-                   </div>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">Email</label>
-                     <input type="email" className="w-full p-2 border rounded" value={employeeForm.email} onChange={e => setEmployeeForm({...employeeForm, email: e.target.value})} />
-                   </div>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">Phone</label>
-                     <input type="tel" className="w-full p-2 border rounded" value={employeeForm.phone} onChange={e => setEmployeeForm({...employeeForm, phone: e.target.value})} />
-                   </div>
+             
+             <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Event Title</label>
+                  <input type="text" className="w-full p-2 border rounded" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} placeholder="e.g. Wedding Function" />
                 </div>
-
-                <div className="space-y-4">
-                   <h4 className="text-sm font-bold text-gray-500 uppercase border-b pb-2">Employment Details</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
                    <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">Role</label>
-                     <select className="w-full p-2 border rounded" value={employeeForm.role} onChange={e => setEmployeeForm({...employeeForm, role: e.target.value as UserRole})}>
-                        <option value={UserRole.STAFF}>Staff</option>
-                        <option value={UserRole.TEAM_LEADER}>Team Leader</option>
-                        <option value={UserRole.SUPERVISOR}>Supervisor</option>
-                        <option value={UserRole.DEPARTMENT_MANAGER}>Department Manager</option>
-                        <option value={UserRole.GENERAL_MANAGER}>General Manager</option>
-                        <option value={UserRole.SUPER_ADMIN}>Super Admin</option>
-                        <option value={UserRole.TRAINEE}>Trainee</option>
+                     <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Date</label>
+                     <input type="date" className="w-full p-2 border rounded" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Type</label>
+                     <select className="w-full p-2 border rounded" value={newEvent.type} onChange={e => setNewEvent({...newEvent, type: e.target.value as any})}>
+                        <option value="function">Function</option>
+                        <option value="management_absence">Management Absence</option>
+                        <option value="holiday">Public Holiday</option>
+                        <option value="other">Other</option>
                      </select>
                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                    <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">Department</label>
-                     <input type="text" className="w-full p-2 border rounded" value={employeeForm.department} onChange={e => setEmployeeForm({...employeeForm, department: e.target.value})} />
+                     <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Start Time</label>
+                     <input type="time" className="w-full p-2 border rounded" value={newEvent.startTime} onChange={e => setNewEvent({...newEvent, startTime: e.target.value})} />
                    </div>
                    <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">Job Title</label>
-                     <input type="text" className="w-full p-2 border rounded" value={employeeForm.jobTitle} onChange={e => setEmployeeForm({...employeeForm, jobTitle: e.target.value})} />
+                     <label className="block text-xs font-bold text-gray-700 uppercase mb-1">End Time</label>
+                     <input type="time" className="w-full p-2 border rounded" value={newEvent.endTime} onChange={e => setNewEvent({...newEvent, endTime: e.target.value})} />
                    </div>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 mb-1">ID Number</label>
-                     <input type="text" className="w-full p-2 border rounded" value={employeeForm.idNumber} onChange={e => setEmployeeForm({...employeeForm, idNumber: e.target.value})} />
-                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Description / Notes</label>
+                  <textarea className="w-full p-2 border rounded h-20" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} placeholder="Details about guests, staff required etc..." />
                 </div>
              </div>
 
-             <div className="mt-6 pt-6 border-t border-gray-100 flex justify-end gap-3">
-               <button onClick={() => setShowEmployeeModal(false)} className="px-6 py-2 bg-gray-100 text-gray-700 font-bold rounded hover:bg-gray-200">Cancel</button>
-               <button onClick={handleCreateEmployee} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 shadow">Create Employee Card</button>
+             <div className="mt-6 flex gap-3">
+                <button onClick={() => setShowEventModal(false)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded hover:bg-gray-200">Cancel</button>
+                <button onClick={handleAddEvent} className="flex-1 bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2">
+                  <Save size={16} /> Save Event
+                </button>
              </div>
           </div>
         </div>

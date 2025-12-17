@@ -1,5 +1,5 @@
 
-import { ChefShiftType, ShiftConfig, SOP, UserRole, DepartmentVisualConfig } from './types';
+import { ChefShiftType, ShiftConfig, SOP, UserRole, DepartmentVisualConfig, RosterLegendItem } from './types';
 
 // ZEBRA LODGE COORDINATES (Mocked for demo purposes)
 export const WORKPLACE_LOCATION = {
@@ -19,6 +19,18 @@ export const SA_PUBLIC_HOLIDAYS = [
   '2025-05-01', '2025-06-16', '2025-08-09', '2025-09-24', '2025-12-16',
   '2025-12-25', '2025-12-26'
 ];
+
+export const ROSTER_LEGEND: Record<string, RosterLegendItem> = {
+  D: { code: 'D', name: 'Duty', color: '#3498db', textColor: '#ffffff', description: 'Regular working day' },
+  H: { code: 'H', name: 'Half Day', color: '#9b59b6', textColor: '#ffffff', description: 'Half day work' },
+  O: { code: 'O', name: 'OFF (Paid)', color: '#2ecc71', textColor: '#ffffff', description: 'OFF with compensation' },
+  N: { code: 'N', name: 'OFF (Unpaid)', color: '#e74c3c', textColor: '#ffffff', description: 'OFF without compensation' },
+  P: { code: 'P', name: 'Public Holiday', color: '#16a085', textColor: '#ffffff', description: 'Public holiday' },
+  S: { code: 'S', name: 'Sick Leave', color: '#1abc9c', textColor: '#ffffff', description: 'Sick leave (certificate)' },
+  L: { code: 'L', name: 'Annual Leave', color: '#f39c12', textColor: '#ffffff', description: 'Annual/paid leave' },
+  V: { code: 'V', name: 'Vacation', color: '#d35400', textColor: '#ffffff', description: 'Extended vacation' },
+  M: { code: 'M', name: 'Management Duty', color: '#2c3e50', textColor: '#ffffff', description: 'Manager on duty' },
+};
 
 export const CHEF_SHIFTS: Record<ChefShiftType, ShiftConfig> = {
   split: {

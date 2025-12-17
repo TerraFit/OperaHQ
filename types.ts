@@ -13,7 +13,7 @@ export enum UserRole {
   TRAINEE = 'trainee'
 }
 
-// SHIFT TYPES
+// SHIFT TYPES (TIME BASED)
 export type ChefShiftType = 'split' | 'morning' | 'evening' | 'function_lunch' | 'double_split';
 
 export interface ShiftConfig {
@@ -25,7 +25,26 @@ export interface ShiftConfig {
   totalHours: number;
 }
 
-// EMPLOYEE SCHEMA (Matches SQL mandate)
+// ROSTER CODES (PLANNING BASED)
+export type RosterShiftCode = 'D' | 'H' | 'O' | 'N' | 'P' | 'S' | 'L' | 'V' | 'M';
+
+export interface RosterLegendItem {
+  code: RosterShiftCode;
+  name: string;
+  color: string;
+  textColor: string;
+  description: string;
+}
+
+export interface RosterEntry {
+  id: string;
+  staffId: string;
+  date: string; // YYYY-MM-DD
+  code: RosterShiftCode;
+  notes?: string;
+}
+
+// EMPLOYEE SCHEMA
 export interface Employee {
   id: string;
   firstName: string;
@@ -61,7 +80,7 @@ export interface Employee {
   overtimeBalance: number;
 }
 
-// SCHEDULE & TIME
+// SCHEDULE & TIME (Legacy/Specific Shift)
 export interface Shift {
   id: string;
   employeeId: string;
@@ -76,7 +95,21 @@ export interface Shift {
   actualClockOut?: string; // ISO Date
 }
 
-// PLANNING
+// PLANNING & EVENTS
+export interface SpecialEvent {
+  id: string;
+  title: string;
+  description?: string;
+  date: string; // YYYY-MM-DD
+  startTime?: string;
+  endTime?: string;
+  expectedGuests?: number;
+  staffRequired?: number;
+  status: 'planned' | 'confirmed' | 'completed' | 'cancelled';
+  type: 'function' | 'management_absence' | 'holiday' | 'other';
+  managerId?: string; // For absences
+}
+
 export interface PlanningEvent {
   id: string;
   date: string; // YYYY-MM-DD
@@ -86,7 +119,7 @@ export interface PlanningEvent {
   createdBy: string;
 }
 
-// --- SOP MANAGEMENT TYPES (ENHANCED) ---
+// --- SOP MANAGEMENT TYPES ---
 
 export type SOPDepartment = 'kitchen' | 'housekeeping' | 'maintenance' | 'front_desk' | 'grounds' | 'all' | 'laundry' | 'general' | 'personal';
 
@@ -176,7 +209,7 @@ export interface ComplianceCheck {
   errors: string[];
 }
 
-// --- MAINTENANCE TYPES (SOP 9.9.1) ---
+// --- MAINTENANCE TYPES ---
 
 export type MaintenanceFrequency = 'DAILY' | 'WEEKLY' | 'EVERY_TWO_WEEKS' | 'MONTHLY' | 'PERIODICALLY' | 'SUMMER_SEASONAL';
 export type MaintenanceArea = 'zebra_lodge' | 'private_area' | 'property';
@@ -208,33 +241,19 @@ export interface MaintenanceTask {
   area: MaintenanceArea;
   frequency: MaintenanceFrequency;
   estimatedMinutes: number;
-  
-  // Specific constraints
-  conditionalRequirements?: Record<string, boolean>; // e.g. { "only_in_winter": true }
-  
-  // Daily/Weekly specifics
+  conditionalRequirements?: Record<string, boolean>; 
   requiresPhoto?: boolean;
   requiresMeasurement?: boolean;
   measurementUnit?: string;
-  
-  // Weekly specific
-  dayOfWeek?: number; // 1=Mon, 7=Sun
-  
-  // Bi-Weekly specific
+  dayOfWeek?: number; 
   weekParity?: 'odd' | 'even' | 'both';
   requiresSupervisorCheck?: boolean;
-  
-  // Monthly specifics
   requiresTcrMethod?: boolean;
   tcrWidthMeters?: number;
   requiresTimeLogging?: boolean;
-  
-  // Periodic specifics
   triggerEvents?: string[];
   vineyardPhase?: string;
   requiresManagementInstruction?: boolean;
-
-  // VINEYARD SPECIFIC
   category?: 'vineyard' | 'general';
   weatherConstraints?: {
     maxWindSpeed?: number;
@@ -247,32 +266,23 @@ export interface MaintenanceTask {
 
 export interface AssignedTask {
   id: string;
-  templateId?: string; // If linked to standard task
+  templateId?: string;
   title: string;
   description: string;
   priority: TaskPriority;
-  
-  // Assignment
-  assignedTo: string; // Employee ID
-  assignedBy: string; // Employee ID
-  assignedAt: string; // ISO
-  dueDate: string; // YYYY-MM-DD
-  dueTime: string; // HH:mm
-  
-  // Machines
+  assignedTo: string; 
+  assignedBy: string; 
+  assignedAt: string; 
+  dueDate: string; 
+  dueTime: string; 
   machinesRequired?: MachineType[];
-  
-  // Status & Progress
   status: TaskStatus;
-  progress: number; // 0 to 100
-  // JSONB column to track progress and associated data
+  progress: number; 
   milestones: Record<number, {
     completedAt: string;
     notes?: string;
     photoUrl?: string;
   }>;
-  
-  // Completion
   completedAt?: string;
   timeSpentMinutes?: number;
 }
@@ -282,21 +292,13 @@ export interface MaintenanceLog {
   taskId: string;
   taskCode: string;
   userId: string;
-  date: string; // YYYY-MM-DD
+  date: string; 
   status: 'completed' | 'skipped' | 'pending';
   notes?: string;
-  
-  // Evidence
   photoUrl?: string;
   measurementValue?: number;
-  
-  // Vineyard Specific Measurements
   measurements?: Record<string, number>;
-  
-  // Time Logging (Trails/Machines)
   timeSpentHours?: number;
-  
-  // Gas Bottle Specifics
   gasBottleData?: {
     bottleId: string;
     currentWeight: number;
@@ -305,11 +307,10 @@ export interface MaintenanceLog {
     regulatorCondition: 'good' | 'faulty' | 'replace';
     leakTestResult: 'no_leaks' | 'minor_leak' | 'major_leak';
   };
-  
-  completedAt: string; // ISO
+  completedAt: string; 
 }
 
-// --- GAS MANAGEMENT TYPES (NEW) ---
+// --- GAS MANAGEMENT TYPES ---
 
 export type GasTankSize = 9 | 19 | 48;
 export type GasTankPurpose = 'heater' | 'cooking' | 'both';
@@ -331,17 +332,17 @@ export interface GasTank {
 
 export interface GasLocation {
   id: string;
-  code: string; // GAS-KITCHEN etc.
+  code: string; 
   name: string;
   department: GasDepartment;
   tankSize: GasTankSize;
   priority: number;
   isAlwaysActive: boolean;
   checkFrequency: GasCheckFrequency;
-  lastChecked?: string; // ISO Date
-  nextCheckDue?: string; // ISO Date
+  lastChecked?: string; 
+  nextCheckDue?: string; 
   currentTankId?: string;
-  currentTank?: GasTank; // Hydrated for UI
+  currentTank?: GasTank; 
 }
 
 export interface GasCheckRecord {
@@ -379,26 +380,18 @@ export interface Guest {
 
 export interface RoomOccupancy {
   id: string;
-  name: string; // e.g., "Colonial", "Earth"
+  name: string; 
   status: RoomStatusType;
   cleaningStatus: CleaningStatusType;
   assignedAttendantId?: string;
-  
-  // Booking Details
   guestId?: string;
-  checkInDate: string; // YYYY-MM-DD
-  checkOutDate: string; // YYYY-MM-DD
-  
-  // Requirements
+  checkInDate: string; 
+  checkOutDate: string; 
   dinnerIncluded: boolean;
   extraBed: boolean;
   babyCot: boolean;
-  
-  // Minibar
   minibarBalance: number;
-  
-  // Workflow
-  lastCleaned?: string; // ISO
+  lastCleaned?: string; 
   inspectedBy?: string;
 }
 
@@ -421,7 +414,7 @@ export interface CleaningChecklistItem {
   subcategory: string;
   description: string;
   isCritical: boolean;
-  completed?: boolean; // Runtime state
+  completed?: boolean; 
 }
 
 export interface MinibarItem {
@@ -434,76 +427,35 @@ export interface MinibarItem {
 export interface MinibarInventory {
   itemId: string;
   currentStock: number;
-  consumed: number; // Runtime state for billing
+  consumed: number; 
 }
 
 export interface RoomAttendantTask {
   roomId: string;
   roomName: string;
-  priority: 'high' | 'medium' | 'low'; // High = Check-out/Check-in
+  priority: 'high' | 'medium' | 'low'; 
   status: CleaningStatusType;
   occupancyStatus: RoomStatusType;
   guest?: Guest;
-  checklistProgress: number; // Percentage
+  checklistProgress: number; 
   startTime?: string;
 }
 
-// --- DASHBOARD INTERACTIVE CARD TYPES ---
+// --- DASHBOARD CARDS ---
 
-export type CardType = 
-  | 'occupancy'          
-  | 'hours_this_week'    
-  | 'overtime_balance'   
-  | 'leave_days'         
-  | 'next_shift'         
-  | 'staff_on_duty'      
-  | 'events_today'       
-  | 'sop_status'         
-  | 'time_clock'         
-  | 'rooms_pending'      
-  | 'weekly_summary';    
+export type CardType = 'occupancy' | 'hours_this_week' | 'overtime_balance' | 'leave_days' | 'next_shift' | 'staff_on_duty' | 'events_today' | 'sop_status' | 'time_clock' | 'rooms_pending' | 'weekly_summary';    
 
 export interface CardExpandedContent {
-  occupancy?: {
-    rooms: any[]; // Using specific types in implementation
-    checkInsToday: any[];
-    checkOutsToday: any[];
-    stayOvers: any[];
-    occupancyTrend: any[];
-    revenueProjection: any;
-  };
-  
-  hoursThisWeek?: {
-    dailyHours: any[];
-    projectHours: any;
-    overtimeForecast: any;
-    laborCost: any;
-    departmentBreakdown: any[];
-  };
-  
+  occupancy?: { rooms: any[]; checkInsToday: any[]; checkOutsToday: any[]; stayOvers: any[]; occupancyTrend: any[]; revenueProjection: any; };
+  hoursThisWeek?: { dailyHours: any[]; projectHours: any; overtimeForecast: any; laborCost: any; departmentBreakdown: any[]; };
   overtimeBalance?: any;
   leaveDays?: any;
   nextShift?: any;
   staffOnDuty?: any;
   eventsToday?: any;
-  
-  sopStatus?: {
-    certifications: any[];
-    expiringSoon: any[];
-    pendingTests: any[];
-    complianceRate: any;
-    departmentScores: any[];
-  };
-  
+  sopStatus?: { certifications: any[]; expiringSoon: any[]; pendingTests: any[]; complianceRate: any; departmentScores: any[]; };
   timeClock?: any;
-  
-  roomsPending?: {
-    rooms: any[];
-    priorityOrder: any[];
-    assignedAttendants: any[];
-    estimatedCompletion: any;
-    qualityIssues: any[];
-  };
+  roomsPending?: { rooms: any[]; priorityOrder: any[]; assignedAttendants: any[]; estimatedCompletion: any; qualityIssues: any[]; };
 }
 
 export interface InteractiveDashboardCardConfig {
@@ -517,11 +469,9 @@ export interface InteractiveDashboardCardConfig {
   isExpandable: boolean;
 }
 
-// --- ROOM ATTENDANT CARD TYPES ---
+// --- ROOM ATTENDANT CARDS ---
 
-export type RoomAttendantCardType = 
-  | 'assigned' | 'in_progress' | 'completed' | 'priority' 
-  | 'inspected' | 'attendants' | 'supplies' | 'quality';
+export type RoomAttendantCardType = 'assigned' | 'in_progress' | 'completed' | 'priority' | 'inspected' | 'attendants' | 'supplies' | 'quality';
 
 export interface RoomAttendantCardConfig {
   id: string;
@@ -544,9 +494,9 @@ export interface AssignedRoom {
   attendantName: string;
   attendantStatus: 'active' | 'on_break' | 'inactive';
   assignedByName: string;
-  assignedAt: string; // ISO
+  assignedAt: string; 
   estimatedMinutes: number;
-  scheduledStart: string; // ISO
+  scheduledStart: string; 
   status: string;
 }
 
@@ -605,25 +555,8 @@ export interface Escalation {
 }
 
 export interface RoomAttendantExpandedData {
-  assigned?: {
-    rooms: AssignedRoom[];
-    attendants: AssignedAttendant[];
-    timeAllocation: any[]; 
-    shiftCoverage: ShiftCoverage[];
-  };
-  completed?: {
-    rooms: CompletedRoom[];
-    attendants: any[];
-    timeMetrics: any[];
-    qualityScores: any[];
-  };
-  priority?: {
-    rooms: PriorityRoom[];
-    reasons: { type: string; count: number; icon: React.ReactNode }[];
-    deadlines: any[];
-    escalations: Escalation[];
-  };
-  inspected?: {
-    summary: any; // Placeholder for inspection details if needed
-  };
+  assigned?: { rooms: AssignedRoom[]; attendants: AssignedAttendant[]; timeAllocation: any[]; shiftCoverage: ShiftCoverage[]; };
+  completed?: { rooms: CompletedRoom[]; attendants: any[]; timeMetrics: any[]; qualityScores: any[]; };
+  priority?: { rooms: PriorityRoom[]; reasons: { type: string; count: number; icon: React.ReactNode }[]; deadlines: any[]; escalations: Escalation[]; };
+  inspected?: { summary: any; };
 }

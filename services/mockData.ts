@@ -1,5 +1,5 @@
 
-import { Employee, UserRole, Shift, SOPAttempt, AuditLog, PlanningEvent, SOP, SOPCreationRequest } from '../types';
+import { Employee, UserRole, Shift, SOPAttempt, AuditLog, PlanningEvent, SOP, SOPCreationRequest, RosterEntry, SpecialEvent } from '../types';
 import { STANDARD_SOPS } from '../constants';
 
 export const CURRENT_USER_ID = 'emp-001'; // Acting as logged in user for demo
@@ -111,6 +111,31 @@ export const MOCK_EMPLOYEES: Employee[] = [
     holidaysEarned: 5.1,
     holidaysTaken: 0,
     overtimeBalance: 0
+  },
+  {
+    id: 'emp-003',
+    firstName: 'Mike',
+    lastName: 'Smith',
+    role: UserRole.STAFF,
+    jobTitle: 'Housekeeper',
+    department: 'Housekeeping',
+    dateStarted: '2023-05-10',
+    birthday: '1995-02-14',
+    idNumber: '9502145000088',
+    phone: '+27 72 333 4455',
+    email: 'mike.s@zebralodge.co.za',
+    status: 'active',
+    warnings: 0,
+    praises: 1,
+    guestCompliments: 2,
+    guestComplaints: 0,
+    absencesCount: 0,
+    lateArrivalsCount: 0,
+    holidaysEarned: 4.0,
+    holidaysTaken: 0,
+    overtimeBalance: 0,
+    emergencyContactName: 'Jane Smith',
+    emergencyContactPhone: '+27 72 333 9999'
   }
 ];
 
@@ -125,6 +150,70 @@ export const MOCK_SHIFTS: Shift[] = [
     totalHours: 8.25,
     status: 'scheduled',
     breakTaken: false
+  }
+];
+
+// --- ROSTER ENTRIES ---
+export const MOCK_ROSTER_ENTRIES: RosterEntry[] = [
+  // Thabo (Kitchen Manager)
+  { id: 're-001', staffId: 'emp-001', date: '2024-12-01', code: 'O' },
+  { id: 're-002', staffId: 'emp-001', date: '2024-12-02', code: 'D' },
+  { id: 're-003', staffId: 'emp-001', date: '2024-12-03', code: 'D' },
+  { id: 're-004', staffId: 'emp-001', date: '2024-12-04', code: 'D' },
+  { id: 're-005', staffId: 'emp-001', date: '2024-12-05', code: 'D' },
+  { id: 're-006', staffId: 'emp-001', date: '2024-12-06', code: 'D' },
+  { id: 're-007', staffId: 'emp-001', date: '2024-12-07', code: 'O' },
+  { id: 're-008', staffId: 'emp-001', date: '2024-12-08', code: 'D' },
+  
+  // Sarah (Chef)
+  { id: 're-010', staffId: 'emp-002', date: '2024-12-01', code: 'D' },
+  { id: 're-011', staffId: 'emp-002', date: '2024-12-02', code: 'D' },
+  { id: 're-012', staffId: 'emp-002', date: '2024-12-03', code: 'O' },
+  { id: 're-013', staffId: 'emp-002', date: '2024-12-04', code: 'O' },
+  { id: 're-014', staffId: 'emp-002', date: '2024-12-05', code: 'D' },
+  { id: 're-015', staffId: 'emp-002', date: '2024-12-06', code: 'D' },
+  { id: 're-016', staffId: 'emp-002', date: '2024-12-07', code: 'D' },
+  { id: 're-017', staffId: 'emp-002', date: '2024-12-08', code: 'D' },
+
+  // Mike (Housekeeper)
+  { id: 're-020', staffId: 'emp-003', date: '2024-12-01', code: 'D' },
+  { id: 're-021', staffId: 'emp-003', date: '2024-12-02', code: 'D' },
+  { id: 're-022', staffId: 'emp-003', date: '2024-12-03', code: 'S' }, // Sick
+  { id: 're-023', staffId: 'emp-003', date: '2024-12-04', code: 'S' },
+  { id: 're-024', staffId: 'emp-003', date: '2024-12-05', code: 'D' },
+  { id: 're-025', staffId: 'emp-003', date: '2024-12-06', code: 'H' }, // Half day
+  { id: 're-026', staffId: 'emp-003', date: '2024-12-07', code: 'O' },
+];
+
+// --- SPECIAL EVENTS & ABSENCES ---
+export const MOCK_SPECIAL_EVENTS: SpecialEvent[] = [
+  {
+    id: 'evt-001',
+    title: '5 DEC FUNCTION',
+    description: '30 Guests for Lunch',
+    date: '2024-12-05',
+    startTime: '11:00',
+    endTime: '15:00',
+    expectedGuests: 30,
+    staffRequired: 5,
+    status: 'confirmed',
+    type: 'function'
+  },
+  {
+    id: 'evt-002',
+    title: 'MANAGEMENT ABSENCE',
+    description: 'Sarah Connor at Conference',
+    date: '2024-12-12',
+    status: 'confirmed',
+    type: 'management_absence',
+    managerId: 'gm-001'
+  },
+  {
+    id: 'evt-003',
+    title: 'Day of Reconciliation',
+    date: '2024-12-16',
+    status: 'confirmed',
+    type: 'holiday'
   }
 ];
 

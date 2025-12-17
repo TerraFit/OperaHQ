@@ -1,20 +1,18 @@
 
 import React, { useState, useEffect, useContext } from 'react';
 import { AppContext } from '../App';
-import { GasLocation, GasTank, GasCheckRecord } from '../types';
+import { GasLocation, GasTank, GasCheckRecord, GasCheckAssessment } from '../types';
 import { MOCK_GAS_LOCATIONS, MOCK_GAS_TANKS } from '../services/mockGasData';
 import { GasService } from '../services/gasService';
 import { 
   Flame, 
   Scale, 
-  Camera, 
   Save, 
-  AlertTriangle, 
-  CheckCircle, 
   ArrowRight, 
-  ShieldAlert,
-  ThermometerSnowflake,
-  X 
+  X,
+  AlertTriangle,
+  CheckCircle,
+  Ban
 } from 'lucide-react';
 
 interface LocationCardProps {
@@ -63,7 +61,7 @@ const LocationCard: React.FC<LocationCardProps> = ({ loc, onClick, styleClass, b
         <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
             {badgeText && <span className="text-[10px] font-bold text-gray-400 uppercase">{badgeText}</span>}
             <span className="text-xs font-bold text-blue-600 flex items-center gap-1 group-hover:gap-2 transition-all ml-auto">
-                Perform Check <ArrowRight size={12} />
+                <Scale size={14} /> Weigh Tank <ArrowRight size={12} />
             </span>
         </div>
       </div>
@@ -85,45 +83,49 @@ export default function GasManagementModule() {
   }, []);
 
   const GasCheckForm = ({ location, onClose }: { location: GasLocation, onClose: () => void }) => {
-    const [tareWeight, setTareWeight] = useState<string>(location.currentTank?.tareWeight.toString() || '');
-    const [fullWeight, setFullWeight] = useState<string>(location.currentTank?.fullWeight.toString() || '');
-    const [measuredWeight, setMeasuredWeight] = useState<string>('');
-    const [photo, setPhoto] = useState<string>('');
+    const [currentWeightStr, setCurrentWeightStr] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const procedure = GasService.getCheckProcedure(location.code, location.tankSize);
+    // Tank Details
+    const tare = location.currentTank?.tareWeight || 0;
+    const full = location.currentTank?.fullWeight || 0;
+    const capacity = full - tare;
 
-    // Derived Values
-    const tare = parseFloat(tareWeight) || 0;
-    const full = parseFloat(fullWeight) || 0;
-    const measured = parseFloat(measuredWeight) || 0;
-    
-    const remaining = GasService.calculateRemainingGas(measured, tare);
-    const percentage = GasService.calculatePercentage(measured, tare, full);
-    const assessment = GasService.getAssessment(percentage);
-    const action = GasService.getActionRequired(percentage);
+    // Calculations
+    const currentWeight = parseFloat(currentWeightStr) || 0;
+    const gasRemaining = GasService.calculateRemainingGas(currentWeight, tare);
+    const percentage = GasService.calculatePercentage(currentWeight, tare, full);
+    const assessment = GasService.getAssessment(percentage, gasRemaining);
+    const action = GasService.getActionRequired(assessment);
 
     const handleSubmit = async () => {
+      if (!currentWeight) return;
       setIsSubmitting(true);
+      
       const newCheck: GasCheckRecord = {
         id: `chk-${Date.now()}`,
         date: new Date().toISOString(),
         checkedBy: user?.id || 'unknown',
         locationId: location.id,
         tankId: location.currentTankId || 'unknown',
-        measuredWeight: measured,
+        measuredWeight: currentWeight,
         tareWeight: tare,
         fullWeight: full,
-        remainingGas: remaining,
+        remainingGas: gasRemaining,
         percentage,
         assessment,
         actionRequired: action,
-        photoUrl: photo
+        photoUrl: '' // Photo removed from requirement
       };
 
-      console.log("Saving Check:", newCheck);
-      if (percentage < 30) await GasService.sendLowGasAlert(location.name, percentage);
+      console.log("Saving Weight Check:", newCheck);
+      
+      // Trigger alerts if low
+      if (assessment === 'low' || assessment === 'empty') {
+        await GasService.sendLowGasAlert(location.name, percentage);
+      }
 
+      // Update Local State
       const updatedLocs = locations.map(l => 
         l.id === location.id ? { ...l, lastChecked: new Date().toISOString() } : l
       );
@@ -132,127 +134,124 @@ export default function GasManagementModule() {
       setTimeout(() => {
         setIsSubmitting(false);
         onClose();
-      }, 800);
+        // Optional: Show prompt for refill if empty
+        if (assessment === 'empty') {
+            alert(`Tank is EMPTY. Please replace tank at ${location.name} immediately.`);
+        }
+      }, 500);
     };
 
+    // Assessment Colors/Icons
+    const getStatusUI = (status: GasCheckAssessment) => {
+        switch (status) {
+            case 'empty': return { color: 'text-red-600', bg: 'bg-red-50 border-red-200', icon: <Ban size={24} /> };
+            case 'low': return { color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200', icon: <AlertTriangle size={24} /> };
+            case 'adequate': return { color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', icon: <CheckCircle size={24} /> };
+            case 'full': return { color: 'text-green-600', bg: 'bg-green-50 border-green-200', icon: <CheckCircle size={24} /> };
+            default: return { color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200', icon: <Scale size={24} /> };
+        }
+    };
+
+    const ui = getStatusUI(assessment);
+
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95">
-        <div className={`px-6 py-4 flex justify-between items-center text-white ${
-            procedure.safetyLevel === 'critical' ? 'bg-red-600' :
-            procedure.safetyLevel === 'high' ? 'bg-orange-600' : 'bg-gray-900'
-        }`}>
-          <div>
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Scale size={20} /> {location.checkFrequency === 'monthly' ? 'Monthly' : 'Weekly'} Check Procedure
-            </h2>
-            <div className="text-xs text-white/80 mt-1 uppercase font-bold tracking-wide">
-              Level: {procedure.safetyLevel} Safety Protocol
-            </div>
-          </div>
-          <button onClick={onClose} className="hover:bg-white/10 p-2 rounded-full transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            {/* SAFETY CHECKLIST */}
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-               <h3 className="text-sm font-bold text-blue-800 uppercase mb-3 flex items-center gap-2">
-                 <ShieldAlert size={16} /> Mandatory Safety Steps
-               </h3>
-               <ul className="space-y-2">
-                 {procedure.steps.map((step, idx) => (
-                   <li key={idx} className="flex items-start gap-2 text-sm text-blue-900">
-                     <div className="mt-0.5 w-4 h-4 rounded-full border border-blue-300 flex items-center justify-center bg-white text-[10px] font-bold text-blue-500">
-                       {idx + 1}
-                     </div>
-                     {step}
-                   </li>
-                 ))}
-               </ul>
-               {procedure.requiresTwoPersonCheck && (
-                 <div className="mt-4 p-2 bg-red-100 text-red-800 text-xs font-bold text-center rounded border border-red-200">
-                   ⚠️ TWO-PERSON CHECK REQUIRED
-                 </div>
-               )}
-            </div>
-
-            {/* WEIGHT INPUT */}
-            <div className="bg-white p-4 rounded-xl border-l-4 border-blue-600 shadow-sm border border-gray-100">
-              <div className="flex justify-between items-center mb-2">
-                <label className="font-bold text-blue-900">Current Weight Reading</label>
-                <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500">Scale</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="number" 
-                  value={measuredWeight} 
-                  onChange={e => setMeasuredWeight(e.target.value)}
-                  className="flex-1 text-right text-xl font-bold p-2 border border-blue-300 rounded focus:ring-2 focus:ring-blue-600 outline-none text-blue-900"
-                  placeholder="0.0"
-                  autoFocus
-                />
-                <span className="font-bold text-blue-700 w-8">kg</span>
-              </div>
-            </div>
-          </div>
-
-          {/* RESULTS PREVIEW */}
-          <div className="space-y-6 flex flex-col justify-between">
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-full">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-gray-800">Analysis</h3>
-                <span className="text-xs font-mono text-gray-400">Tare: {tare}kg</span>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-end border-b border-gray-200 pb-2">
-                  <span className="text-sm text-gray-500">Remaining Gas</span>
-                  <span className="text-2xl font-bold text-gray-900">{remaining} <span className="text-sm text-gray-400 font-normal">kg</span></span>
-                </div>
-
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
+            {/* Header */}
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                 <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-500">Capacity Used</span>
-                    <span className="font-bold text-gray-900">{percentage}%</span>
-                  </div>
-                  <div className="h-4 bg-gray-200 rounded-full overflow-hidden relative shadow-inner">
-                    <div 
-                      className={`h-full transition-all duration-500 ${percentage < 15 ? 'bg-red-500' : percentage < 30 ? 'bg-orange-500' : 'bg-green-500'}`}
-                      style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
-                    />
-                  </div>
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        ⚖️ Weigh Tank
+                    </h2>
+                    <p className="text-xs text-gray-500">{location.name} • {location.tankSize}kg</p>
                 </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-sm text-gray-500">Assessment</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                    assessment === 'critical' || assessment === 'empty' ? 'bg-red-100 text-red-700' :
-                    assessment === 'low' ? 'bg-orange-100 text-orange-700' :
-                    'bg-green-100 text-green-700'
-                  }`}>
-                    {assessment}
-                  </span>
-                </div>
-
-                <div className="bg-white p-3 rounded border border-gray-200 text-center mt-4">
-                  <span className="block text-xs text-gray-400 uppercase mb-1">Required Action</span>
-                  <span className={`font-bold ${action === 'REFILL NOW' ? 'text-red-600 animate-pulse' : 'text-gray-700'}`}>
-                    {action}
-                  </span>
-                </div>
-              </div>
+                <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <X size={20} className="text-gray-500" />
+                </button>
             </div>
 
-            <button 
-                 onClick={handleSubmit}
-                 disabled={!measured || isSubmitting}
-                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
-               >
-                 {isSubmitting ? 'Processing...' : <><Save size={18} /> Confirm Check</>}
-            </button>
-          </div>
+            <div className="p-6 space-y-6">
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <div>
+                        <span className="block text-gray-400 text-xs font-bold uppercase">Tare Weight</span>
+                        <span className="font-mono font-bold text-gray-700">{tare} kg</span>
+                    </div>
+                    <div>
+                        <span className="block text-gray-400 text-xs font-bold uppercase">Capacity</span>
+                        <span className="font-mono font-bold text-gray-700">{capacity} kg</span>
+                    </div>
+                </div>
+
+                {/* Input Section */}
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Total Weight (Scale Reading)</label>
+                    <div className="relative">
+                        <input 
+                            type="number" 
+                            step="0.1"
+                            value={currentWeightStr}
+                            onChange={e => setCurrentWeightStr(e.target.value)}
+                            className="w-full text-center text-3xl font-bold p-4 border-2 border-blue-100 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-500 outline-none text-blue-900"
+                            placeholder="0.0"
+                            autoFocus
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">kg</span>
+                    </div>
+                    <p className="text-xs text-center text-gray-400 mt-2">Enter the full weight shown on the scale</p>
+                </div>
+
+                {/* Calculation Results */}
+                {currentWeight > 0 && (
+                    <div className={`p-4 rounded-xl border-2 ${ui.bg} transition-all animate-in fade-in slide-in-from-bottom-2`}>
+                        <div className="flex justify-between items-center mb-3 border-b border-black/5 pb-2">
+                            <span className="text-xs font-bold uppercase opacity-60">Gas Remaining</span>
+                            <span className={`text-lg font-bold font-mono ${ui.color}`}>{Math.max(0, gasRemaining).toFixed(1)} kg</span>
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold mb-1">
+                                <span className={ui.color}>{assessment.toUpperCase()}</span>
+                                <span>{Math.max(0, percentage).toFixed(1)}%</span>
+                            </div>
+                            <div className="h-3 bg-white/50 rounded-full overflow-hidden border border-black/5">
+                                <div 
+                                    className={`h-full transition-all duration-500 ${
+                                        assessment === 'empty' ? 'bg-red-500' :
+                                        assessment === 'low' ? 'bg-yellow-500' :
+                                        assessment === 'adequate' ? 'bg-blue-500' : 'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={`mt-3 flex items-center gap-2 text-sm font-bold ${ui.color}`}>
+                            {ui.icon}
+                            {action !== 'None' ? action : 'Status OK'}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+                <button 
+                    onClick={onClose}
+                    className="flex-1 px-4 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-100"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={handleSubmit}
+                    disabled={!currentWeight || isSubmitting}
+                    className={`flex-1 px-4 py-3 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2
+                        ${!currentWeight ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200 hover:-translate-y-0.5'}
+                    `}
+                >
+                    {isSubmitting ? 'Saving...' : <><Save size={18} /> Save Check</>}
+                </button>
+            </div>
         </div>
       </div>
     );
@@ -274,10 +273,11 @@ export default function GasManagementModule() {
         </div>
       </div>
 
-      {currentLocation ? (
+      {currentLocation && (
         <GasCheckForm location={currentLocation} onClose={() => setCurrentLocation(null)} />
-      ) : (
-        <div className="space-y-8">
+      )}
+
+      <div className="space-y-8">
            {/* 2. GEYSERS */}
            <section className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
              <div className="flex justify-between items-center mb-4">
@@ -336,8 +336,7 @@ export default function GasManagementModule() {
                 ))}
              </div>
            </section>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
