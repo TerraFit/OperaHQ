@@ -259,7 +259,6 @@ export default function GasManagementModule() {
   };
 
   // Grouping Logic
-  const kitchenPrivate = locations.filter(l => l.isAlwaysActive && !l.name.includes('Geyser'));
   const geysers = locations.filter(l => l.isAlwaysActive && l.name.includes('Geyser'));
   const guestRooms = locations.filter(l => l.department === 'guest_rooms');
   const backup = locations.filter(l => l.tankSize === 9 && !l.isAlwaysActive);
@@ -279,21 +278,6 @@ export default function GasManagementModule() {
         <GasCheckForm location={currentLocation} onClose={() => setCurrentLocation(null)} />
       ) : (
         <div className="space-y-8">
-           {/* 1. KITCHEN & PRIVATE AREAS */}
-           <section className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
-             <div className="flex justify-between items-center mb-4">
-               <h2 className="text-lg font-bold text-red-900 flex items-center gap-2">
-                 🔥 Kitchen & Private Areas (Always Active)
-               </h2>
-               <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">High Priority</span>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {kitchenPrivate.map(loc => (
-                    <LocationCard key={loc.id} loc={loc} onClick={setCurrentLocation} />
-                ))}
-             </div>
-           </section>
-
            {/* 2. GEYSERS */}
            <section className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
              <div className="flex justify-between items-center mb-4">
