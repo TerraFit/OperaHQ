@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect, useContext } from 'react';
 import { AppContext } from '../App';
-import { MOCK_SOPS, MOCK_SOP_ATTEMPTS } from '../services/mockData';
+import { MOCK_SOPS, MOCK_SOP_ATTEMPTS, MOCK_SOP_REQUESTS } from '../services/mockData';
 import { SOPService } from '../services/sopService';
-import { SOP, SOPAttempt } from '../types';
+import { DEPARTMENT_VISUALS } from '../constants';
+import { SOP, SOPAttempt, SOPCreationRequest, UserRole } from '../types';
+import SOPCreationModal from './SOPCreationModal';
 import { 
   CheckCircle, 
   XCircle, 
@@ -15,7 +17,14 @@ import {
   Award,
   Lock,
   Eye,
-  FileText
+  FileText,
+  Plus,
+  Layout,
+  Filter,
+  BrainCircuit,
+  Users,
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 
 interface SOPCardProps {
@@ -26,19 +35,23 @@ interface SOPCardProps {
 
 const SOPCard: React.FC<SOPCardProps> = ({ sop, statusConfig, onClick }) => {
   const { status, label, color, bg } = statusConfig;
+  const visual = DEPARTMENT_VISUALS[sop.department] || DEPARTMENT_VISUALS['general'];
+
   return (
       <div 
         onClick={() => onClick(sop)}
-        className={`p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-blue-300 bg-white relative overflow-hidden`}
+        className="p-4 rounded-xl border shadow-sm cursor-pointer transition-all hover:shadow-md bg-white relative overflow-hidden group"
+        style={{ borderLeftWidth: '6px', borderLeftColor: visual.color }}
       >
-          <div className={`absolute top-0 left-0 w-1.5 h-full ${status === 'certified' ? 'bg-green-500' : status === 'failed' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
-          
-          <div className="flex justify-between items-start mb-2 pl-3">
+          <div className="flex justify-between items-start mb-2 pl-2">
               <div>
                   <span className="text-xs font-mono text-gray-400 font-bold">{sop.code}</span>
                   <h3 className="font-bold text-gray-900 leading-tight mb-1">{sop.title}</h3>
-                  <span className="text-[10px] uppercase font-bold tracking-wider bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                      {sop.department}
+                  <span 
+                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded inline-flex items-center gap-1"
+                    style={{ backgroundColor: visual.bgLight, color: visual.color }}
+                  >
+                      {visual.icon} {sop.department}
                   </span>
               </div>
               <div className={`p-1.5 rounded-full ${bg} ${color}`}>
@@ -48,9 +61,9 @@ const SOPCard: React.FC<SOPCardProps> = ({ sop, statusConfig, onClick }) => {
               </div>
           </div>
           
-          <div className="flex justify-between items-end mt-4 pl-3">
+          <div className="flex justify-between items-end mt-4 pl-2">
               <div className="text-xs font-medium text-gray-500">{label}</div>
-              <button className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:underline">
+              <button className="text-xs font-bold text-blue-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   Open <ChevronRight size={12} />
               </button>
           </div>
@@ -58,12 +71,75 @@ const SOPCard: React.FC<SOPCardProps> = ({ sop, statusConfig, onClick }) => {
   );
 };
 
+// Request Card for Management View
+const RequestCard: React.FC<{ request: SOPCreationRequest }> = ({ request }) => {
+    const visual = DEPARTMENT_VISUALS[request.department] || DEPARTMENT_VISUALS['general'];
+    
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">
+            <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: visual.color }}></div>
+            
+            <div className="flex justify-between items-start mb-2 pl-3">
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 rounded" style={{ backgroundColor: visual.bgLight, color: visual.color }}>
+                            {visual.icon} {request.department}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 rounded ${
+                            request.status === 'draft' ? 'bg-gray-100 text-gray-600' :
+                            request.status === 'assigned' ? 'bg-blue-100 text-blue-600' :
+                            request.status === 'in_progress' ? 'bg-purple-100 text-purple-600' :
+                            'bg-green-100 text-green-600'
+                        }`}>
+                            {request.status.replace('_', ' ')}
+                        </span>
+                    </div>
+                    <h3 className="font-bold text-gray-900">{request.title}</h3>
+                </div>
+                <div className="text-gray-400">
+                    {request.method === 'ai_generated' && <BrainCircuit size={18} className="text-purple-500" />}
+                    {request.method === 'internal' && <Users size={18} className="text-blue-500" />}
+                    {request.method === 'external' && <ExternalLink size={18} className="text-orange-500" />}
+                </div>
+            </div>
+
+            <div className="pl-3 mt-3 text-xs text-gray-500 space-y-1">
+                <div className="flex items-center gap-2">
+                    <Clock size={12} /> Created: {new Date(request.createdAt).toLocaleDateString()}
+                </div>
+                {request.assignedToName && (
+                    <div className="flex items-center gap-2 font-medium text-gray-700">
+                        <Users size={12} /> Assigned: {request.assignedToName}
+                    </div>
+                )}
+                {request.deadline && (
+                    <div className="flex items-center gap-2 text-red-500 font-medium">
+                        <AlertCircle size={12} /> Due: {new Date(request.deadline).toLocaleDateString()}
+                    </div>
+                )}
+            </div>
+
+            {request.progress > 0 && (
+                <div className="mt-3 pl-3">
+                    <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${request.progress}%` }}></div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 export default function SOPModule() {
   const { user } = useContext(AppContext);
   const [attempts, setAttempts] = useState<SOPAttempt[]>(MOCK_SOP_ATTEMPTS);
+  const [requests, setRequests] = useState<SOPCreationRequest[]>(MOCK_SOP_REQUESTS);
+  
   const [selectedSOP, setSelectedSOP] = useState<SOP | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'reading' | 'testing'>('list');
+  const [activeTab, setActiveTab] = useState<'library' | 'management'>('library');
   const [filterDept, setFilterDept] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // --- READING STATE ---
   const [readingTime, setReadingTime] = useState(0);
@@ -90,6 +166,10 @@ export default function SOPModule() {
   // Derived Data
   const userAttempts = attempts.filter(a => a.userId === user?.id);
   const filteredSOPs = MOCK_SOPS.filter(s => filterDept === 'all' || s.department === filterDept || s.department === 'all');
+  const filteredRequests = requests.filter(r => filterDept === 'all' || r.department === filterDept);
+
+  // Permissions
+  const canManage = [UserRole.SUPER_ADMIN, UserRole.GENERAL_MANAGER, UserRole.DEPARTMENT_MANAGER].includes(user?.role as UserRole);
 
   // --- ACTIONS ---
 
@@ -164,6 +244,11 @@ export default function SOPModule() {
       if (!isValid) return { status: 'expired', label: 'Expired', color: 'text-orange-600', bg: 'bg-orange-50' };
       
       return { status: 'certified', label: 'Certified', color: 'text-green-600', bg: 'bg-green-50' };
+  };
+
+  const handleCreateRequest = (req: SOPCreationRequest) => {
+      setRequests([req, ...requests]);
+      setShowCreateModal(false);
   };
 
   // --- RENDER ---
@@ -356,7 +441,7 @@ export default function SOPModule() {
       );
   }
 
-  // --- LIST VIEW ---
+  // --- DASHBOARD VIEW ---
   return (
     <div className="space-y-6 animate-in fade-in">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -364,35 +449,102 @@ export default function SOPModule() {
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                     <FileText className="text-blue-600" /> Standard Operating Procedures
                 </h2>
-                <p className="text-gray-500 text-sm mt-1">Compliance Library • {userAttempts.filter(a => a.passed).length} of {MOCK_SOPS.length} Certified</p>
+                <p className="text-gray-500 text-sm mt-1">Compliance Library & Training Management</p>
             </div>
             
             <div className="flex items-center gap-3">
-                <select 
-                    value={filterDept} 
-                    onChange={e => setFilterDept(e.target.value)}
-                    className="bg-gray-100 border border-gray-200 text-gray-700 text-sm rounded-lg p-2.5 font-bold focus:ring-blue-500 focus:border-blue-500"
-                >
-                    <option value="all">All Departments</option>
-                    <option value="kitchen">Kitchen</option>
-                    <option value="housekeeping">Housekeeping</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="grounds">Grounds</option>
-                    <option value="front_desk">Front Desk</option>
-                </select>
+                {canManage && (
+                    <div className="bg-gray-100 p-1 rounded-lg flex items-center">
+                        <button 
+                            onClick={() => setActiveTab('library')}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'library' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Library
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('management')}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'management' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Management
+                        </button>
+                    </div>
+                )}
+                
+                {canManage && activeTab === 'management' && (
+                    <button 
+                        onClick={() => setShowCreateModal(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm"
+                    >
+                        <Plus size={18} /> Create SOP
+                    </button>
+                )}
             </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSOPs.map(sop => (
-                <SOPCard 
-                    key={sop.id} 
-                    sop={sop} 
-                    statusConfig={getStatus(sop.id)}
-                    onClick={handleOpenSOP}
-                />
+        {/* DEPARTMENT FILTERS */}
+        <div className="flex overflow-x-auto pb-2 gap-2 hide-scrollbar">
+            <button 
+                onClick={() => setFilterDept('all')}
+                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors border ${filterDept === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+            >
+                🌍 All
+            </button>
+            {Object.keys(DEPARTMENT_VISUALS).filter(k => k !== 'all').map(dept => (
+                <button
+                    key={dept}
+                    onClick={() => setFilterDept(dept)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors border flex items-center gap-2
+                        ${filterDept === dept 
+                            ? 'shadow-md border-transparent' 
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}
+                    `}
+                    style={filterDept === dept ? { backgroundColor: DEPARTMENT_VISUALS[dept].color, color: 'white' } : {}}
+                >
+                    <span>{DEPARTMENT_VISUALS[dept].icon}</span>
+                    <span className="capitalize">{dept.replace('_', ' ')}</span>
+                </button>
             ))}
         </div>
+
+        {/* CONTENT AREA */}
+        {activeTab === 'library' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredSOPs.map(sop => (
+                    <SOPCard 
+                        key={sop.id} 
+                        sop={sop} 
+                        statusConfig={getStatus(sop.id)}
+                        onClick={handleOpenSOP}
+                    />
+                ))}
+            </div>
+        ) : (
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-gray-700">Active Creation Requests</h3>
+                    <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded">{filteredRequests.length} Total</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredRequests.map(req => (
+                        <RequestCard key={req.id} request={req} />
+                    ))}
+                    {filteredRequests.length === 0 && (
+                        <div className="col-span-full py-12 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                            No active requests for this filter.
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* MODALS */}
+        {showCreateModal && (
+            <SOPCreationModal 
+                onClose={() => setShowCreateModal(false)}
+                onCreate={handleCreateRequest}
+            />
+        )}
     </div>
   );
 }

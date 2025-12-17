@@ -1,5 +1,5 @@
 
-import { Employee, UserRole, Shift, SOPAttempt, AuditLog, PlanningEvent, SOP } from '../types';
+import { Employee, UserRole, Shift, SOPAttempt, AuditLog, PlanningEvent, SOP, SOPCreationRequest } from '../types';
 import { STANDARD_SOPS } from '../constants';
 
 export const CURRENT_USER_ID = 'emp-001'; // Acting as logged in user for demo
@@ -153,6 +153,53 @@ export const MOCK_SOP_ATTEMPTS: SOPAttempt[] = [
     timestamp: new Date().toISOString(), // Just failed
     validUntil: '',
     nextEligibleDate: new Date(Date.now() + 28 * 86400000).toISOString() // 28 days from now
+  }
+];
+
+export const MOCK_SOP_REQUESTS: SOPCreationRequest[] = [
+  {
+    id: 'req-001',
+    title: 'VIP Suite Preparation',
+    department: 'housekeeping',
+    category: 'guest_service',
+    description: 'Special procedures for preparing VIP suites and presidential rooms',
+    priority: 'high',
+    status: 'in_progress',
+    method: 'internal',
+    assignedToName: 'Sarah Nkosi',
+    assignedToId: 'emp-002',
+    assignedBy: 'admin-001',
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    deadline: new Date(Date.now() + 86400000 * 3).toISOString(),
+    progress: 75
+  },
+  {
+    id: 'req-002',
+    title: 'Generator Safety Protocol',
+    department: 'maintenance',
+    category: 'safety',
+    description: 'Emergency generator operation and safety procedures during load shedding',
+    priority: 'medium',
+    status: 'assigned',
+    method: 'external',
+    assignedBy: 'admin-001',
+    externalEmail: 'safety@techservice.co.za',
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    progress: 0
+  },
+  {
+    id: 'req-003',
+    title: 'New Menu Tasting Workflow',
+    department: 'kitchen',
+    category: 'food_safety',
+    description: 'Procedure for seasonal menu testing and approval',
+    priority: 'low',
+    status: 'draft',
+    method: 'ai_generated',
+    assignedBy: 'admin-001',
+    aiGenerated: true,
+    createdAt: new Date().toISOString(),
+    progress: 100
   }
 ];
 

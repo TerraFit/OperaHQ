@@ -1,5 +1,5 @@
 
-import { ChefShiftType, ShiftConfig, SOP, UserRole } from './types';
+import { ChefShiftType, ShiftConfig, SOP, UserRole, DepartmentVisualConfig } from './types';
 
 // ZEBRA LODGE COORDINATES (Mocked for demo purposes)
 export const WORKPLACE_LOCATION = {
@@ -103,6 +103,19 @@ export const STANDARD_SOPS: SOP[] = [
   { id: 'sop-024', code: 'ZL-SOP-024', title: 'CCTV & Security', department: 'front_desk', category: 'security', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
   { id: 'sop-025', code: 'ZL-SOP-025', title: 'Data Protection (POPIA)', department: 'all', category: 'compliance', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 }
 ];
+
+// DEPARTMENT VISUAL IDENTITY
+export const DEPARTMENT_VISUALS: Record<string, DepartmentVisualConfig> = {
+  kitchen: { color: '#FF6B6B', icon: '🍳', bgLight: '#FFF5F5' },
+  housekeeping: { color: '#4ECDC4', icon: '🧹', bgLight: '#F0FCFB' },
+  maintenance: { color: '#45B7D1', icon: '🔧', bgLight: '#F0F9FC' },
+  front_desk: { color: '#96CEB4', icon: '💼', bgLight: '#F5FAF7' },
+  laundry: { color: '#FFEAA7', icon: '👕', bgLight: '#FFFDF5' },
+  grounds: { color: '#55EFC4', icon: '🌳', bgLight: '#F5FFFC' },
+  general: { color: '#DDA0DD', icon: '🌍', bgLight: '#FDF5FD' },
+  personal: { color: '#F8C8DC', icon: '👤', bgLight: '#FFF5F9' },
+  all: { color: '#A0AEC0', icon: '📚', bgLight: '#F7FAFC' }
+};
 
 export const PERMISSIONS = {
   [UserRole.SUPER_ADMIN]: ['*'], // Full System Access

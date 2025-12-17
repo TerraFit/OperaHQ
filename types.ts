@@ -88,7 +88,7 @@ export interface PlanningEvent {
 
 // --- SOP MANAGEMENT TYPES (ENHANCED) ---
 
-export type SOPDepartment = 'kitchen' | 'housekeeping' | 'maintenance' | 'front_desk' | 'grounds' | 'all';
+export type SOPDepartment = 'kitchen' | 'housekeeping' | 'maintenance' | 'front_desk' | 'grounds' | 'all' | 'laundry' | 'general' | 'personal';
 
 export interface SOPQuestion {
   question: string;
@@ -129,6 +129,35 @@ export interface SOPAttempt {
   // Expiry Logic
   validUntil: string; // ISO Date
   nextEligibleDate: string; // ISO Date
+}
+
+// SOP CREATION TYPES
+export type SOPStatus = 'draft' | 'assigned' | 'in_progress' | 'review' | 'approved' | 'rejected' | 'published';
+export type SOPCreationMethod = 'internal' | 'external' | 'ai_generated' | 'self';
+
+export interface SOPCreationRequest {
+  id: string;
+  title: string;
+  department: SOPDepartment;
+  category: string;
+  description?: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  deadline?: string;
+  status: SOPStatus;
+  method: SOPCreationMethod;
+  assignedToName?: string; // Mock name for display
+  assignedToId?: string;
+  assignedBy: string;
+  createdAt: string;
+  aiGenerated?: boolean;
+  externalEmail?: string;
+  progress: number; // 0-100
+}
+
+export interface DepartmentVisualConfig {
+  color: string;
+  bgLight: string;
+  icon: string;
 }
 
 // AUDIT
@@ -284,8 +313,10 @@ export interface MaintenanceLog {
 
 export type GasTankSize = 9 | 19 | 48;
 export type GasTankPurpose = 'heater' | 'cooking' | 'both';
-export type GasTankStatus = 'in_storage' | 'in_use' | 'empty' | 'needs_refill' | 'refilling' | 'retired';
+export type GasTankStatus = 'in_storage' | 'in_use' | 'empty' | 'needs_refill' | 'refilling' | 'retired' | 'reserved';
 export type GasCheckAssessment = 'full' | 'adequate' | 'low' | 'critical' | 'empty';
+export type GasDepartment = 'kitchen' | 'private_areas' | 'guest_rooms';
+export type GasCheckFrequency = 'daily' | 'weekly' | 'monthly';
 
 export interface GasTank {
   id: string;
@@ -300,15 +331,16 @@ export interface GasTank {
 
 export interface GasLocation {
   id: string;
-  code: string;
+  code: string; // GAS-KITCHEN etc.
   name: string;
-  type: 'room' | 'kitchen' | 'private' | 'suite' | 'common_area';
+  department: GasDepartment;
   tankSize: GasTankSize;
-  purpose: GasTankPurpose;
-  hasWinterHeater: boolean;
-  winterActive: boolean; // Runtime state
-  currentTankId?: string;
+  priority: number;
+  isAlwaysActive: boolean;
+  checkFrequency: GasCheckFrequency;
   lastChecked?: string; // ISO Date
+  nextCheckDue?: string; // ISO Date
+  currentTankId?: string;
   currentTank?: GasTank; // Hydrated for UI
 }
 
