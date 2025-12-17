@@ -1,0 +1,8 @@
+{
+  "name": "OperaHQ",
+  "description": "Compliance-first workforce management system for Zebra Lodge, adhering to strict South African labor laws and operational mandates.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
