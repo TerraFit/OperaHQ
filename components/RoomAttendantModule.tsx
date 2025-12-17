@@ -135,7 +135,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, user, onStart, onInspect }) =
          </button>
       )}
 
-      {(user?.role === UserRole.MANAGER || user?.role === UserRole.SUPERVISOR) && (
+      {([UserRole.SUPER_ADMIN, UserRole.GENERAL_MANAGER, UserRole.DEPARTMENT_MANAGER, UserRole.SUPERVISOR].includes(user?.role as UserRole)) && (
          <div className="flex gap-2">
             <button onClick={() => onStart(room.id)} className="flex-1 bg-white p-2 rounded text-xs font-bold shadow-sm">View</button>
             <button onClick={() => onInspect(room.id)} className="flex-1 bg-blue-600 text-white p-2 rounded text-xs font-bold shadow-sm">Inspect</button>

@@ -1,3 +1,4 @@
+
 import { ChefShiftType, ShiftConfig, SOP, UserRole } from './types';
 
 // ZEBRA LODGE COORDINATES (Mocked for demo purposes)
@@ -56,37 +57,87 @@ export const CHEF_SHIFTS: Record<ChefShiftType, ShiftConfig> = {
   }
 };
 
+const DEFAULT_SOP_PROPS = {
+  category: 'general',
+  version: '1.0',
+  contentHtml: '<p>Standard procedure content.</p>',
+  questions: [],
+  passingScore: 100,
+  timeLimitMinutes: 30,
+  retestIntervalWeeks: 4
+};
+
 export const STANDARD_SOPS: SOP[] = [
-  { code: 'ZL-SOP-001', title: 'Food Safety Level 1', department: 'kitchen' },
-  { code: 'ZL-SOP-002', title: 'Knife Safety', department: 'kitchen' },
-  { code: 'ZL-SOP-003', title: 'Chemical Handling', department: 'all' },
-  { code: 'ZL-SOP-004', title: 'Personal Hygiene', department: 'all' },
-  { code: 'ZL-SOP-005', title: 'Waste Management', department: 'kitchen' },
-  { code: 'ZL-SOP-006', title: 'Receiving Goods', department: 'kitchen' },
-  { code: 'ZL-SOP-007', title: 'Storage Procedures', department: 'kitchen' },
-  { code: 'ZL-SOP-008', title: 'Thawing Procedures', department: 'kitchen' },
-  { code: 'ZL-SOP-009', title: 'Cooking Temperatures', department: 'kitchen' },
-  { code: 'ZL-SOP-010', title: 'Cooling Food', department: 'kitchen' },
-  { code: 'ZL-SOP-011', title: 'Reheating Food', department: 'kitchen' },
-  { code: 'ZL-SOP-012', title: 'Serving Food', department: 'kitchen' },
-  { code: 'ZL-SOP-013', title: 'Cleaning Schedules', department: 'kitchen' },
-  { code: 'ZL-SOP-014', title: 'Pest Control', department: 'kitchen' },
-  { code: 'ZL-SOP-015', title: 'Laundry Handling', department: 'housekeeping' },
-  { code: 'ZL-SOP-016', title: 'Room Cleaning Steps', department: 'housekeeping' },
-  { code: 'ZL-SOP-017', title: 'Lost and Found', department: 'all' },
-  { code: 'ZL-SOP-018', title: 'Key Control', department: 'all' },
-  { code: 'ZL-SOP-019', title: 'Guest Greeting', department: 'all' },
-  { code: 'ZL-SOP-020', title: 'Complaint Handling', department: 'all' },
-  { code: 'ZL-SOP-021', title: 'Telephone Etiquette', department: 'all' },
-  { code: 'ZL-SOP-022', title: 'Uniform Standards', department: 'all' },
-  { code: 'ZL-SOP-023', title: 'Time & Attendance', department: 'all' },
-  { code: 'ZL-SOP-024', title: 'Incident Reporting', department: 'all' },
-  { code: 'ZL-SOP-025', title: 'Emergency Evacuation', department: 'all' }
+  // KITCHEN
+  { id: 'sop-001', code: 'ZL-SOP-001', title: 'Food Safety Level 1', department: 'kitchen', category: 'food_safety', version: '1.0', contentHtml: '<h1>Food Safety</h1><p>Full SOP content...</p>', questions: [{question: "Danger zone temp?", options: ["0-5", "5-60", "60+"], correctIndex: 1}], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-002', code: 'ZL-SOP-002', title: 'Knife Safety & Handling', department: 'kitchen', category: 'safety', version: '1.0', contentHtml: '<h1>Knife Safety</h1><p>Full content...</p>', questions: [{question: "Pass knife how?", options: ["Blade", "Handle", "Throw"], correctIndex: 1}], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-003', code: 'ZL-SOP-003', title: 'Commercial Oven Operation', department: 'kitchen', category: 'equipment', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-004', code: 'ZL-SOP-004', title: 'Walk-in Fridge Safety', department: 'kitchen', category: 'safety', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-005', code: 'ZL-SOP-005', title: 'Dishwashing & Sanitization', department: 'kitchen', category: 'hygiene', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  
+  // HOUSEKEEPING
+  { id: 'sop-006', code: 'ZL-SOP-006', title: 'Room Cleaning Procedure', department: 'housekeeping', category: 'cleaning', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-007', code: 'ZL-SOP-007', title: 'Chemical Handling & Dilution', department: 'housekeeping', category: 'safety', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-008', code: 'ZL-SOP-008', title: 'Linen Handling Protocol', department: 'housekeeping', category: 'hygiene', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-009', code: 'ZL-SOP-009', title: 'Minibar Restocking', department: 'housekeeping', category: 'inventory', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-010', code: 'ZL-SOP-010', title: 'Lost Property Procedure', department: 'housekeeping', category: 'guest_services', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+
+  // MAINTENANCE
+  { id: 'sop-011', code: 'ZL-SOP-011', title: 'Basic Electrical Safety', department: 'maintenance', category: 'safety', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-012', code: 'ZL-SOP-012', title: 'Pool Chemical Handling', department: 'maintenance', category: 'chemical', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-013', code: 'ZL-SOP-013', title: 'Ladder Safety', department: 'maintenance', category: 'safety', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-014', code: 'ZL-SOP-014', title: 'Pressure Washer Operation', department: 'maintenance', category: 'equipment', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-015', code: 'ZL-SOP-015', title: 'Generator Operation & Testing', department: 'maintenance', category: 'critical', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+
+  // GROUNDS
+  { id: 'sop-016', code: 'ZL-SOP-016', title: 'Chainsaw Operation', department: 'grounds', category: 'dangerous', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-017', code: 'ZL-SOP-017', title: 'Brush Cutter Safety', department: 'grounds', category: 'dangerous', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-018', code: 'ZL-SOP-018', title: 'Tractor Operation', department: 'grounds', category: 'vehicle', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-019', code: 'ZL-SOP-019', title: 'Chemical Spraying', department: 'grounds', category: 'chemical', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-020', code: 'ZL-SOP-020', title: 'Fire Extinguisher Use', department: 'all', category: 'safety', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+
+  // FRONT DESK & GENERAL
+  { id: 'sop-021', code: 'ZL-SOP-021', title: 'Check-in Procedure', department: 'front_desk', category: 'guest_services', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-022', code: 'ZL-SOP-022', title: 'Emergency Evacuation', department: 'all', category: 'safety', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-023', code: 'ZL-SOP-023', title: 'First Aid Response', department: 'all', category: 'safety', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-024', code: 'ZL-SOP-024', title: 'CCTV & Security', department: 'front_desk', category: 'security', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 },
+  { id: 'sop-025', code: 'ZL-SOP-025', title: 'Data Protection (POPIA)', department: 'all', category: 'compliance', version: '1.0', contentHtml: '<p>Content...</p>', questions: [], passingScore: 100, timeLimitMinutes: 30, retestIntervalWeeks: 4 }
 ];
 
 export const PERMISSIONS = {
-  [UserRole.STAFF]: ['employee:read:own', 'schedule:read:own', 'sop:read:assigned', 'sop:complete', 'clock:self'],
-  [UserRole.SUPERVISOR]: ['employee:read:dept', 'schedule:read:dept', 'sop:read:dept', 'sop:assign', 'clock:self'],
-  [UserRole.MANAGER]: ['employee:read:all', 'employee:write', 'schedule:write', 'sop:write', 'audit:read', 'clock:override'],
-  [UserRole.ADMIN]: ['*']
+  [UserRole.SUPER_ADMIN]: ['*'], // Full System Access
+  
+  [UserRole.GENERAL_MANAGER]: [
+    'users:manage', 'departments:manage', 'sops:manage_all', 'training:assign_all',
+    'reports:full', 'certificates:issue', 'compliance:oversee', 'employee:read:all',
+    'schedule:write', 'audit:read', 'clock:override'
+  ],
+  
+  [UserRole.DEPARTMENT_MANAGER]: [
+    'users:manage_dept', 'sops:manage_dept', 'training:assign_dept', 'reports:dept',
+    'schedule:view_dept', 'employee:read:dept', 'schedule:write', 'sop:read:dept',
+    'sop:assign', 'clock:self'
+  ],
+  
+  [UserRole.SUPERVISOR]: [
+    'users:view_team', 'progress:track_team', 'training:assign_team', 'reports:team',
+    'sops:view_dept', 'employee:read:dept', 'schedule:read:dept', 'sop:read:assigned',
+    'sop:complete', 'clock:self'
+  ],
+  
+  [UserRole.TEAM_LEADER]: [
+    'users:view_team', 'progress:track_team', 'reports:basic', 'sops:view_assigned',
+    'training:complete', 'profile:manage', 'employee:read:own', 'schedule:read:own',
+    'clock:self'
+  ],
+  
+  [UserRole.STAFF]: [
+    'sops:view_assigned', 'training:complete', 'profile:manage', 'certificates:view',
+    'employee:read:own', 'schedule:read:own', 'sop:complete', 'clock:self'
+  ],
+  
+  [UserRole.TRAINEE]: [
+    'sops:view_assigned', 'training:complete', 'profile:view', 'employee:read:own',
+    'schedule:read:own', 'clock:self'
+  ]
 };

@@ -313,7 +313,7 @@ export default function MaintenanceModule() {
         </div>
         
         <div className="flex items-center gap-4">
-            {(user?.role === UserRole.MANAGER || user?.role === UserRole.ADMIN) && (
+            {([UserRole.SUPER_ADMIN, UserRole.GENERAL_MANAGER, UserRole.DEPARTMENT_MANAGER].includes(user?.role as UserRole)) && (
                  <button onClick={() => setViewMode('manager')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
                      <LayoutDashboard size={16} /> Manager View
                  </button>

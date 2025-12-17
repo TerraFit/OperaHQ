@@ -4,10 +4,13 @@ import React from 'react';
 
 // ROLES
 export enum UserRole {
-  STAFF = 'staff',
+  SUPER_ADMIN = 'super_admin',
+  GENERAL_MANAGER = 'general_manager',
+  DEPARTMENT_MANAGER = 'department_manager',
   SUPERVISOR = 'supervisor',
-  MANAGER = 'manager',
-  ADMIN = 'admin'
+  TEAM_LEADER = 'team_leader',
+  STAFF = 'staff',
+  TRAINEE = 'trainee'
 }
 
 // SHIFT TYPES
@@ -83,20 +86,49 @@ export interface PlanningEvent {
   createdBy: string;
 }
 
-// SOP
+// --- SOP MANAGEMENT TYPES (ENHANCED) ---
+
+export type SOPDepartment = 'kitchen' | 'housekeeping' | 'maintenance' | 'front_desk' | 'grounds' | 'all';
+
+export interface SOPQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
+
 export interface SOP {
-  code: string;
+  id: string;
+  code: string; // ZL-SOP-001
   title: string;
-  department: string;
+  department: SOPDepartment;
+  category: string;
+  version: string;
+  contentHtml: string;
+  summary?: string;
+  
+  // Test Config
+  questions: SOPQuestion[];
+  passingScore: number; // Default 100
+  timeLimitMinutes: number; // Default 30
+  retestIntervalWeeks: number; // Default 4
 }
 
 export interface SOPAttempt {
   id: string;
-  sopCode: string;
+  sopCode: string; // Code reference
+  sopId: string;   // ID reference
   userId: string;
   score: number; // 0-100
   passed: boolean;
-  timestamp: string;
+  timestamp: string; // Completion Date
+  
+  // Activity Data
+  readingTimeSeconds?: number;
+  testDurationSeconds?: number;
+  
+  // Expiry Logic
+  validUntil: string; // ISO Date
+  nextEligibleDate: string; // ISO Date
 }
 
 // AUDIT
@@ -246,6 +278,55 @@ export interface MaintenanceLog {
   };
   
   completedAt: string; // ISO
+}
+
+// --- GAS MANAGEMENT TYPES (NEW) ---
+
+export type GasTankSize = 9 | 19 | 48;
+export type GasTankPurpose = 'heater' | 'cooking' | 'both';
+export type GasTankStatus = 'in_storage' | 'in_use' | 'empty' | 'needs_refill' | 'refilling' | 'retired';
+export type GasCheckAssessment = 'full' | 'adequate' | 'low' | 'critical' | 'empty';
+
+export interface GasTank {
+  id: string;
+  serialNumber: string;
+  size: GasTankSize;
+  tareWeight: number;
+  fullWeight: number;
+  currentWeight: number;
+  status: GasTankStatus;
+  currentLocationId?: string;
+}
+
+export interface GasLocation {
+  id: string;
+  code: string;
+  name: string;
+  type: 'room' | 'kitchen' | 'private' | 'suite' | 'common_area';
+  tankSize: GasTankSize;
+  purpose: GasTankPurpose;
+  hasWinterHeater: boolean;
+  winterActive: boolean; // Runtime state
+  currentTankId?: string;
+  lastChecked?: string; // ISO Date
+  currentTank?: GasTank; // Hydrated for UI
+}
+
+export interface GasCheckRecord {
+  id: string;
+  date: string;
+  checkedBy: string;
+  locationId: string;
+  tankId: string;
+  measuredWeight: number;
+  tareWeight: number;
+  fullWeight: number;
+  remainingGas: number;
+  percentage: number;
+  assessment: GasCheckAssessment;
+  actionRequired: string;
+  notes?: string;
+  photoUrl?: string;
 }
 
 // --- OCCUPANCY & HOUSEKEEPING TYPES ---

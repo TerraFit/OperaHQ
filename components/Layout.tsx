@@ -17,7 +17,9 @@ import {
   Users,
   Wrench,
   MoreHorizontal,
-  X
+  X,
+  Flame,
+  Shield
 } from 'lucide-react';
 
 export default function Layout() {
@@ -33,21 +35,32 @@ export default function Layout() {
 
   if (!user) return null;
 
-  const isSupervisorOrAbove = [UserRole.SUPERVISOR, UserRole.MANAGER, UserRole.ADMIN].includes(user.role);
+  const isSupervisorOrAbove = [
+    UserRole.SUPER_ADMIN, 
+    UserRole.GENERAL_MANAGER, 
+    UserRole.DEPARTMENT_MANAGER, 
+    UserRole.SUPERVISOR
+  ].includes(user.role);
 
   // Navigation Items Config
   const sidebarItems = [
+    { to: "/admin", icon: Shield, label: "Admin Panel", requiredRole: UserRole.SUPER_ADMIN },
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { to: "/planning", icon: CalendarRange, label: "Planning", requiredRole: true },
+    { to: "/planning", icon: CalendarRange, label: "Planning", requiredRole: 'supervisor_plus' },
     { to: "/shift", icon: Users, label: "Shift" },
     { to: "/time-clock", icon: Clock, label: "Time Clock" },
     { to: "/housekeeping", icon: BedDouble, label: "Housekeeping" },
     { to: "/maintenance", icon: Wrench, label: "Maintenance" },
+    { to: "/gas-management", icon: Flame, label: "Gas Tanks" }, 
     { to: "/sops", icon: BookOpenCheck, label: "SOPs" },
     { to: "/my-profile", icon: User, label: "My Profile" },
   ];
 
-  const filteredSidebarItems = sidebarItems.filter(item => !item.requiredRole || isSupervisorOrAbove);
+  const filteredSidebarItems = sidebarItems.filter(item => {
+    if (item.requiredRole === UserRole.SUPER_ADMIN) return user.role === UserRole.SUPER_ADMIN;
+    if (item.requiredRole === 'supervisor_plus') return isSupervisorOrAbove;
+    return true;
+  });
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
@@ -81,7 +94,7 @@ export default function Layout() {
             <ShieldAlert className="text-blue-500" />
             OperaHQ
           </h1>
-          <p className="text-xs text-gray-500 mt-1">v1.0.0 • {user.role.toUpperCase()}</p>
+          <p className="text-xs text-gray-500 mt-1">v1.0.0 • {user.role.replace('_', ' ').toUpperCase()}</p>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -147,10 +160,14 @@ export default function Layout() {
             </div>
             
             <div className="grid grid-cols-4 gap-4">
+              {user.role === UserRole.SUPER_ADMIN && (
+                <MobileNavItem to="/admin" icon={Shield} label="Admin" />
+              )}
               {isSupervisorOrAbove && (
                 <MobileNavItem to="/planning" icon={CalendarRange} label="Planning" />
               )}
               <MobileNavItem to="/maintenance" icon={Wrench} label="Maint." />
+              <MobileNavItem to="/gas-management" icon={Flame} label="Gas" />
               <MobileNavItem to="/sops" icon={BookOpenCheck} label="SOPs" />
               <MobileNavItem to="/my-profile" icon={User} label="Profile" />
             </div>

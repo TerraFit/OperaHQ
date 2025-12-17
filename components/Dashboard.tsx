@@ -13,7 +13,7 @@ export default function Dashboard() {
 
   if (!user) return null;
 
-  const isManager = user.role === UserRole.MANAGER || user.role === UserRole.ADMIN;
+  const isManager = [UserRole.SUPER_ADMIN, UserRole.GENERAL_MANAGER, UserRole.DEPARTMENT_MANAGER].includes(user.role);
 
   const cards: InteractiveDashboardCardConfig[] = [
     {

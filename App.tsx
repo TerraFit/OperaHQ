@@ -9,7 +9,9 @@ import SOPModule from './components/SOPModule';
 import EmployeeProfile from './components/EmployeeProfile';
 import MonthlyPlanning from './components/MonthlyPlanning';
 import MaintenanceModule from './components/MaintenanceModule';
-import RoomAttendantModule from './components/RoomAttendantModule'; // NEW IMPORT
+import RoomAttendantModule from './components/RoomAttendantModule'; 
+import GasManagementModule from './components/GasManagementModule';
+import AdminPanel from './components/AdminPanel'; // NEW IMPORT
 import { MOCK_EMPLOYEES, MOCK_SHIFTS } from './services/mockData';
 import { Employee, UserRole, Shift } from './types';
 
@@ -80,7 +82,7 @@ const LoginScreen = () => {
             >
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName} ({emp.role})
+                  {emp.firstName} {emp.lastName} ({emp.role.replace('_', ' ').toUpperCase()})
                 </option>
               ))}
             </select>
@@ -135,9 +137,21 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             
+            {/* SUPER ADMIN PANEL */}
+            <Route path="admin" element={
+              <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN]}>
+                <AdminPanel />
+              </ProtectedRoute>
+            } />
+            
             {/* Planning - Supervisor+ */}
             <Route path="planning" element={
-              <ProtectedRoute allowedRoles={[UserRole.SUPERVISOR, UserRole.MANAGER, UserRole.ADMIN]}>
+              <ProtectedRoute allowedRoles={[
+                UserRole.SUPER_ADMIN, 
+                UserRole.GENERAL_MANAGER, 
+                UserRole.DEPARTMENT_MANAGER, 
+                UserRole.SUPERVISOR
+              ]}>
                 <MonthlyPlanning />
               </ProtectedRoute>
             } />
@@ -146,6 +160,7 @@ export default function App() {
             <Route path="time-clock" element={<TimeClock />} />
             <Route path="housekeeping" element={<RoomAttendantModule />} />
             <Route path="maintenance" element={<MaintenanceModule />} />
+            <Route path="gas-management" element={<GasManagementModule />} /> 
             <Route path="sops" element={<SOPModule />} />
             <Route path="my-profile" element={<EmployeeProfile />} />
             
@@ -155,7 +170,11 @@ export default function App() {
             <Route path="profile" element={<Navigate to="/my-profile" replace />} />
             
             <Route path="profile/:id" element={
-              <ProtectedRoute allowedRoles={[UserRole.MANAGER, UserRole.ADMIN]}>
+              <ProtectedRoute allowedRoles={[
+                UserRole.SUPER_ADMIN, 
+                UserRole.GENERAL_MANAGER, 
+                UserRole.DEPARTMENT_MANAGER
+              ]}>
                 <EmployeeProfile />
               </ProtectedRoute>
             } />

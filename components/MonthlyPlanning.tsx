@@ -1,3 +1,4 @@
+
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../App';
 import { MOCK_PLANNING_EVENTS } from '../services/mockData';
@@ -68,7 +69,9 @@ export default function MonthlyPlanning() {
   const [shiftError, setShiftError] = useState<string[]>([]);
 
   // Permissions
-  const canEdit = user?.role === UserRole.MANAGER || user?.role === UserRole.ADMIN;
+  const canEdit = user?.role === UserRole.SUPER_ADMIN || 
+                  user?.role === UserRole.GENERAL_MANAGER || 
+                  user?.role === UserRole.DEPARTMENT_MANAGER;
 
   // --- HELPERS ---
 
@@ -661,8 +664,12 @@ export default function MonthlyPlanning() {
                      <label className="block text-xs font-bold text-gray-700 mb-1">Role</label>
                      <select className="w-full p-2 border rounded" value={employeeForm.role} onChange={e => setEmployeeForm({...employeeForm, role: e.target.value as UserRole})}>
                         <option value={UserRole.STAFF}>Staff</option>
+                        <option value={UserRole.TEAM_LEADER}>Team Leader</option>
                         <option value={UserRole.SUPERVISOR}>Supervisor</option>
-                        <option value={UserRole.MANAGER}>Manager</option>
+                        <option value={UserRole.DEPARTMENT_MANAGER}>Department Manager</option>
+                        <option value={UserRole.GENERAL_MANAGER}>General Manager</option>
+                        <option value={UserRole.SUPER_ADMIN}>Super Admin</option>
+                        <option value={UserRole.TRAINEE}>Trainee</option>
                      </select>
                    </div>
                    <div>

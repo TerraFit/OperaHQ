@@ -1,13 +1,65 @@
-import { Employee, UserRole, Shift, SOPAttempt, AuditLog, PlanningEvent } from '../types';
+
+import { Employee, UserRole, Shift, SOPAttempt, AuditLog, PlanningEvent, SOP } from '../types';
+import { STANDARD_SOPS } from '../constants';
 
 export const CURRENT_USER_ID = 'emp-001'; // Acting as logged in user for demo
 
 export const MOCK_EMPLOYEES: Employee[] = [
   {
+    id: 'admin-001',
+    firstName: 'System',
+    lastName: 'Admin',
+    role: UserRole.SUPER_ADMIN,
+    jobTitle: 'Super Administrator',
+    department: 'Administration',
+    dateStarted: '2020-01-01',
+    birthday: '1980-01-01',
+    idNumber: '8001015000080',
+    phone: '+27 82 000 0000',
+    email: 'admin@zebralodge.co.za',
+    status: 'active',
+    warnings: 0,
+    praises: 0,
+    guestCompliments: 0,
+    guestComplaints: 0,
+    absencesCount: 0,
+    lateArrivalsCount: 0,
+    holidaysEarned: 0,
+    holidaysTaken: 0,
+    overtimeBalance: 0,
+    emergencyContactName: 'Admin Support',
+    emergencyContactPhone: '+27 82 000 9999'
+  },
+  {
+    id: 'gm-001',
+    firstName: 'Sarah',
+    lastName: 'Connor',
+    role: UserRole.GENERAL_MANAGER,
+    jobTitle: 'General Manager',
+    department: 'Management',
+    dateStarted: '2021-03-15',
+    birthday: '1982-05-20',
+    idNumber: '8205200055081',
+    phone: '+27 83 555 1111',
+    email: 'gm@zebralodge.co.za',
+    status: 'active',
+    warnings: 0,
+    praises: 10,
+    guestCompliments: 25,
+    guestComplaints: 0,
+    absencesCount: 0,
+    lateArrivalsCount: 0,
+    holidaysEarned: 20,
+    holidaysTaken: 5,
+    overtimeBalance: 0,
+    emergencyContactName: 'John Connor',
+    emergencyContactPhone: '+27 83 555 2222'
+  },
+  {
     id: 'emp-001',
     firstName: 'Thabo',
     lastName: 'Molefe',
-    role: UserRole.MANAGER,
+    role: UserRole.DEPARTMENT_MANAGER,
     jobTitle: 'Head Chef',
     department: 'Kitchen',
     dateStarted: '2020-01-15',
@@ -76,14 +128,31 @@ export const MOCK_SHIFTS: Shift[] = [
   }
 ];
 
+// Use the standard definitions from constants
+export const MOCK_SOPS: SOP[] = [...STANDARD_SOPS];
+
 export const MOCK_SOP_ATTEMPTS: SOPAttempt[] = [
   {
     id: 'att-001',
     sopCode: 'ZL-SOP-001',
+    sopId: 'sop-001',
     userId: 'emp-001',
     score: 100,
     passed: true,
-    timestamp: '2023-10-01T10:00:00Z'
+    timestamp: new Date(Date.now() - 30 * 86400000).toISOString(), // 30 days ago (eligible for retest)
+    validUntil: new Date(Date.now() + 335 * 86400000).toISOString(),
+    nextEligibleDate: new Date(Date.now() - 2 * 86400000).toISOString() // 2 days ago
+  },
+  {
+    id: 'att-002',
+    sopCode: 'ZL-SOP-002',
+    sopId: 'sop-002',
+    userId: 'emp-001',
+    score: 80,
+    passed: false,
+    timestamp: new Date().toISOString(), // Just failed
+    validUntil: '',
+    nextEligibleDate: new Date(Date.now() + 28 * 86400000).toISOString() // 28 days from now
   }
 ];
 
@@ -95,6 +164,14 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = [
     action: 'SCHEDULE_CREATE',
     reason: 'Weekly roster generation',
     changes: 'Created shift sh-101'
+  },
+  {
+    id: 'log-002',
+    timestamp: '2023-10-28T09:15:00Z',
+    userId: 'admin-001',
+    action: 'USER_ROLE_UPDATE',
+    reason: 'Promotion',
+    changes: 'Promoted Sarah Nkosi to Team Leader'
   }
 ];
 
