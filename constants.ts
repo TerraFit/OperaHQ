@@ -66,6 +66,12 @@ export const CHEF_SHIFTS: Record<ChefShiftType, ShiftConfig> = {
     secondStartTime: '16:00',
     secondEndTime: '21:00',
     totalHours: 11.25
+  },
+  full_day: {
+    type: 'full_day',
+    startTime: '07:45',
+    endTime: '21:00',
+    totalHours: 13.25
   }
 };
 

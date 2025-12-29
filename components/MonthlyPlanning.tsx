@@ -13,6 +13,7 @@ import {
   UserRole 
 } from '../types';
 import { ROSTER_LEGEND } from '../constants';
+import AutoScheduleModal from './AutoScheduleModal';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -25,7 +26,8 @@ import {
   AlertTriangle,
   PartyPopper,
   X,
-  Save
+  Save,
+  Wand2
 } from 'lucide-react';
 
 export default function MonthlyPlanning() {
@@ -39,6 +41,7 @@ export default function MonthlyPlanning() {
 
   // Modal State
   const [showEventModal, setShowEventModal] = useState(false);
+  const [showAutoModal, setShowAutoModal] = useState(false);
   const [newEvent, setNewEvent] = useState<Partial<SpecialEvent>>({ 
     title: '', 
     date: '', 
@@ -53,7 +56,6 @@ export default function MonthlyPlanning() {
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   
-  // Added explicit return type to getDaysArray to prevent 'unknown' inference
   const getDaysArray = (): Date[] => {
     const daysArr: Date[] = [];
     for (let i = 1; i <= daysInMonth; i++) {
@@ -103,6 +105,13 @@ export default function MonthlyPlanning() {
     setSelectedCell(null);
   };
 
+  const handleApplyAutoRoster = (newEntries: RosterEntry[]) => {
+    // Merging logic: Filter out existing entries that overlap with auto-generated ones
+    const newDateStrings = new Set(newEntries.map(e => `${e.staffId}_${e.date}`));
+    const cleanRoster = roster.filter(e => !newDateStrings.has(`${e.staffId}_${e.date}`));
+    setRoster([...cleanRoster, ...newEntries]);
+  };
+
   const handleAddEvent = () => {
     if (!newEvent.title || !newEvent.date) return;
     const evt: SpecialEvent = {
@@ -120,7 +129,6 @@ export default function MonthlyPlanning() {
     setNewEvent({ title: '', date: '', type: 'function' });
   };
 
-  // Group employees by department - Added explicit generic to useMemo
   const groupedEmployees = useMemo<Record<string, Employee[]>>(() => {
     const groups: Record<string, Employee[]> = {};
     employees.forEach(emp => {
@@ -131,7 +139,6 @@ export default function MonthlyPlanning() {
     return groups;
   }, [employees]);
 
-  // Filter events for current month
   const monthlyEvents = useMemo(() => {
     return events.filter(e => {
       const d = new Date(e.date);
@@ -158,6 +165,11 @@ export default function MonthlyPlanning() {
               <div className="text-sm text-gray-600 space-y-1">
                  <div>{emp.email}</div>
                  <div>{emp.phone}</div>
+                 <div className="flex items-center gap-2 mt-2">
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase border ${emp.employmentType === 'permanent' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      {emp.employmentType}
+                    </span>
+                 </div>
               </div>
             </div>
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
@@ -199,6 +211,13 @@ export default function MonthlyPlanning() {
         </div>
 
         <div className="flex gap-2">
+           <button 
+              onClick={() => setShowAutoModal(true)} 
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-sm font-bold text-sm"
+              title="Pre-fill 4 Months"
+            >
+             <Wand2 size={16} /> Auto-Fill
+           </button>
            <button onClick={() => setShowEventModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-bold text-sm">
              <Plus size={16} /> Add Event
            </button>
@@ -263,7 +282,6 @@ export default function MonthlyPlanning() {
                  </tr>
                </thead>
                <tbody>
-                 {/* Explicitly typed the staff array in the map to ensure .map works correctly */}
                  {Object.entries(groupedEmployees).map(([dept, staff]: [string, Employee[]]) => (
                    <React.Fragment key={dept}>
                      {/* Department Header */}
@@ -278,7 +296,10 @@ export default function MonthlyPlanning() {
                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600">
                              {emp.firstName[0]}{emp.lastName[0]}
                            </div>
-                           {emp.firstName} {emp.lastName}
+                           <div className="flex flex-col">
+                             <span className="leading-tight">{emp.firstName} {emp.lastName}</span>
+                             <span className={`text-[8px] font-black uppercase ${emp.employmentType === 'permanent' ? 'text-indigo-500' : 'text-gray-400'}`}>{emp.employmentType}</span>
+                           </div>
                          </td>
                          {days.map((d: Date) => {
                            const dateStr = formatDate(d);
@@ -327,7 +348,7 @@ export default function MonthlyPlanning() {
       {/* SHIFT SELECTOR POPUP */}
       {selectedCell && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setSelectedCell(null)}>
-           <div className="bg-white rounded-xl shadow-xl p-4 w-full max-sm animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+           <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
               <h3 className="font-bold text-gray-900 mb-4 text-center">Select Shift for {selectedCell.date}</h3>
               <div className="grid grid-cols-3 gap-3">
                  {Object.values(ROSTER_LEGEND).map(item => (
@@ -348,7 +369,6 @@ export default function MonthlyPlanning() {
                  ))}
                  <button 
                    onClick={() => {
-                     // Clear shift logic
                      const newRoster = roster.filter(r => !(r.staffId === selectedCell.staffId && r.date === selectedCell.date));
                      setRoster(newRoster);
                      setSelectedCell(null);
@@ -361,6 +381,14 @@ export default function MonthlyPlanning() {
               </div>
            </div>
         </div>
+      )}
+
+      {/* AUTO SCHEDULE MODAL */}
+      {showAutoModal && (
+        <AutoScheduleModal 
+          onClose={() => setShowAutoModal(false)}
+          onApply={handleApplyAutoRoster}
+        />
       )}
 
       {/* ADD EVENT MODAL */}

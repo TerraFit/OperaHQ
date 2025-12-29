@@ -1,7 +1,6 @@
 
 import React from 'react';
 
-
 // ROLES
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
@@ -14,7 +13,7 @@ export enum UserRole {
 }
 
 // SHIFT TYPES (TIME BASED)
-export type ChefShiftType = 'split' | 'morning' | 'evening' | 'function_lunch' | 'double_split';
+export type ChefShiftType = 'split' | 'morning' | 'evening' | 'function_lunch' | 'double_split' | 'full_day';
 
 export interface ShiftConfig {
   type: ChefShiftType;
@@ -23,6 +22,19 @@ export interface ShiftConfig {
   secondStartTime?: string; // For splits
   secondEndTime?: string; // For splits
   totalHours: number;
+}
+
+// Added Shift interface used for individual work records
+export interface Shift {
+  id: string;
+  employeeId: string;
+  date: string;
+  type: string;
+  start: string;
+  end: string;
+  totalHours: number;
+  status: 'scheduled' | 'clocked_in' | 'clocked_out' | 'break';
+  breakTaken: boolean;
 }
 
 // ROSTER CODES (PLANNING BASED)
@@ -50,25 +62,19 @@ export interface Employee {
   firstName: string;
   lastName: string;
   photoUrl?: string;
-  role: UserRole; // Mapped from DB 'role'
-  jobTitle: string; // Chef, Housekeeper etc
+  role: UserRole;
+  jobTitle: string;
   department: string;
+  employmentType: 'permanent' | 'casual';
   dateStarted: string; // ISO Date
   birthday: string; // ISO Date
   idNumber: string;
   phone: string;
   email: string;
-  privateAddress?: string; // Manager/Admin only
-
-  // Employment Details
-  clothingSize?: string;
-  shoeSize?: string;
-  uniformSize?: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
+  privateAddress?: string;
   status: 'active' | 'inactive' | 'on_leave';
 
-  // Performance
+  // Performance & Totals
   warnings: number;
   praises: number;
   guestCompliments: number;
@@ -78,95 +84,51 @@ export interface Employee {
   holidaysEarned: number;
   holidaysTaken: number;
   overtimeBalance: number;
+
+  // Additional fields used in profile and uniforms
+  clothingSize?: string;
+  shoeSize?: string;
+  uniformSize?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
 }
 
-// SCHEDULE & TIME (Legacy/Specific Shift)
-export interface Shift {
-  id: string;
-  employeeId: string;
-  date: string; // YYYY-MM-DD
-  type: ChefShiftType;
-  start: string; // ISO Date
-  end: string; // ISO Date
-  totalHours: number;
-  status: 'scheduled' | 'clocked_in' | 'clocked_out' | 'break';
-  breakTaken: boolean;
-  actualClockIn?: string; // ISO Date
-  actualClockOut?: string; // ISO Date
-}
-
-// PLANNING & EVENTS
-export interface SpecialEvent {
-  id: string;
-  title: string;
-  description?: string;
-  date: string; // YYYY-MM-DD
-  startTime?: string;
-  endTime?: string;
-  expectedGuests?: number;
-  staffRequired?: number;
-  status: 'planned' | 'confirmed' | 'completed' | 'cancelled';
-  type: 'function' | 'management_absence' | 'holiday' | 'other';
-  managerId?: string; // For absences
-}
-
-export interface PlanningEvent {
-  id: string;
-  date: string; // YYYY-MM-DD
-  title: string;
-  type: 'meeting' | 'training' | 'deadline' | 'other';
-  description?: string;
-  createdBy: string;
-}
-
-// --- SOP MANAGEMENT TYPES ---
-
-export type SOPDepartment = 'kitchen' | 'housekeeping' | 'maintenance' | 'front_desk' | 'grounds' | 'all' | 'laundry' | 'general' | 'personal';
-
-export interface SOPQuestion {
-  question: string;
-  options: string[];
-  correctIndex: number;
-}
+// SOP MODULE TYPES
+export type SOPDepartment = 'kitchen' | 'housekeeping' | 'maintenance' | 'grounds' | 'front_desk' | 'laundry' | 'general' | 'personal' | 'all';
 
 export interface SOP {
   id: string;
-  code: string; // ZL-SOP-001
+  code: string;
   title: string;
   department: SOPDepartment;
   category: string;
   version: string;
   contentHtml: string;
   summary?: string;
-  
-  // Test Config
-  questions: SOPQuestion[];
-  passingScore: number; // Default 100
-  timeLimitMinutes: number; // Default 30
-  retestIntervalWeeks: number; // Default 4
+  questions: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+  }[];
+  passingScore: number;
+  timeLimitMinutes: number;
+  retestIntervalWeeks: number;
 }
 
 export interface SOPAttempt {
   id: string;
-  sopCode: string; // Code reference
-  sopId: string;   // ID reference
+  sopId: string;
+  sopCode: string;
   userId: string;
-  score: number; // 0-100
+  score: number;
   passed: boolean;
-  timestamp: string; // Completion Date
-  
-  // Activity Data
-  readingTimeSeconds?: number;
+  timestamp: string;
+  validUntil: string;
+  nextEligibleDate: string;
   testDurationSeconds?: number;
-  
-  // Expiry Logic
-  validUntil: string; // ISO Date
-  nextEligibleDate: string; // ISO Date
 }
 
-// SOP CREATION TYPES
-export type SOPStatus = 'draft' | 'assigned' | 'in_progress' | 'review' | 'approved' | 'rejected' | 'published';
-export type SOPCreationMethod = 'internal' | 'external' | 'ai_generated' | 'self';
+export type SOPCreationMethod = 'ai_generated' | 'internal' | 'external';
 
 export interface SOPCreationRequest {
   id: string;
@@ -174,23 +136,41 @@ export interface SOPCreationRequest {
   department: SOPDepartment;
   category: string;
   description?: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  deadline?: string;
-  status: SOPStatus;
+  priority: 'low' | 'medium' | 'high';
+  status: 'draft' | 'assigned' | 'in_progress' | 'review' | 'completed';
   method: SOPCreationMethod;
-  assignedToName?: string; // Mock name for display
-  assignedToId?: string;
   assignedBy: string;
   createdAt: string;
+  deadline?: string;
+  progress: number;
+  assignedToId?: string;
+  assignedToName?: string;
   aiGenerated?: boolean;
   externalEmail?: string;
-  progress: number; // 0-100
 }
 
-export interface DepartmentVisualConfig {
-  color: string;
-  bgLight: string;
-  icon: string;
+// PLANNING & EVENTS
+export interface SpecialEvent {
+  id: string;
+  title: string;
+  description?: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  expectedGuests?: number;
+  staffRequired?: number;
+  status: 'confirmed' | 'pending';
+  type: 'function' | 'management_absence' | 'holiday' | 'other';
+  managerId?: string;
+}
+
+export interface PlanningEvent {
+  id: string;
+  date: string;
+  title: string;
+  type: string;
+  description: string;
+  createdBy: string;
 }
 
 // AUDIT
@@ -200,22 +180,99 @@ export interface AuditLog {
   userId: string;
   action: string;
   reason: string;
-  changes: string; // JSON string
+  changes: string;
 }
 
-// COMPLIANCE RESULTS
-export interface ComplianceCheck {
-  valid: boolean;
-  errors: string[];
+// DASHBOARD TYPES
+export type CardType = 'occupancy' | 'rooms_pending' | 'hours_this_week' | 'sop_status';
+
+export interface InteractiveDashboardCardConfig {
+  id: string;
+  type: CardType;
+  title: string;
+  icon: any;
+  currentValue: string;
+  subValue?: string;
+  status: 'normal' | 'warning' | 'critical' | 'success';
+  isExpandable: boolean;
 }
 
-// --- MAINTENANCE TYPES ---
+export interface CardExpandedContent {
+  occupancy?: any;
+  roomsPending?: any;
+  hoursThisWeek?: any;
+  sopStatus?: any;
+}
 
+// MAINTENANCE MODULE TYPES
 export type MaintenanceFrequency = 'DAILY' | 'WEEKLY' | 'EVERY_TWO_WEEKS' | 'MONTHLY' | 'PERIODICALLY' | 'SUMMER_SEASONAL';
-export type MaintenanceArea = 'zebra_lodge' | 'private_area' | 'property';
-export type MachineType = 'brush_cutter' | 'chainsaw' | 'tractor' | 'mini_excavator' | 'earth_auger' | 'lawn_mower' | 'pool_pump' | 'generator' | 'sprayer';
-export type TaskPriority = 'emergency' | 'high' | 'medium' | 'low' | 'scheduled';
-export type TaskStatus = 'assigned' | 'acknowledged' | 'in_progress' | 'on_hold' | 'completed' | 'verified' | 'failed' | 'cancelled';
+export type MachineType = 'chainsaw' | 'tractor' | 'brush_cutter' | 'generator' | 'sprayer';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'emergency';
+
+export interface MaintenanceTask {
+  id: string;
+  code: string;
+  description: string;
+  area: string;
+  frequency: MaintenanceFrequency;
+  estimatedMinutes: number;
+  dayOfWeek?: number;
+  weekParity?: 'odd' | 'even' | 'both';
+  requiresMeasurement?: boolean;
+  requiresTcrMethod?: boolean;
+  tcrWidthMeters?: number;
+  requiresTimeLogging?: boolean;
+  conditionalRequirements?: Record<string, boolean>;
+  triggerEvents?: string[];
+  vineyardPhase?: string;
+  requiresManagementInstruction?: boolean;
+  category?: string;
+  ppeRequired?: string[];
+  weatherConstraints?: {
+    maxWindSpeed: number;
+    maxTemp: number;
+    noRain: boolean;
+  };
+  measurementsRequired?: string[];
+  requiresPhoto?: boolean;
+}
+
+export interface MachineCertification {
+  id: string;
+  employeeId: string;
+  machineType: MachineType;
+  score: number;
+  testDate: string;
+  requiresRetestBy?: string;
+  consecutiveFails: number;
+}
+
+export interface AssignedTask {
+  id: string;
+  title: string;
+  description: string;
+  priority: TaskPriority;
+  assignedTo: string;
+  assignedBy: string;
+  assignedAt: string;
+  dueDate: string;
+  dueTime: string;
+  machinesRequired?: MachineType[];
+  status: 'assigned' | 'in_progress' | 'completed';
+  progress: number;
+  milestones?: Record<number, { completedAt: string; notes: string }>;
+}
+
+export interface MaintenanceLog {
+  id: string;
+  taskId: string;
+  taskCode: string;
+  userId: string;
+  date: string;
+  status: 'completed' | 'in_progress';
+  completedAt: string;
+  [key: string]: any;
+}
 
 export interface WeatherData {
   temperature: number;
@@ -224,153 +281,30 @@ export interface WeatherData {
   rainLast24Hours: number;
 }
 
-export interface MachineCertification {
+// HOUSEKEEPING TYPES
+export type RoomStatus = 'vacant' | 'occupied' | 'stay_over' | 'check_in_today' | 'check_out_today';
+export type CleaningStatus = 'not_cleaned' | 'cleaning_in_progress' | 'cleaned' | 'inspected';
+
+export interface RoomOccupancy {
   id: string;
-  employeeId: string;
-  machineType: MachineType;
-  score: number;
-  testDate: string; // ISO
-  requiresRetestBy?: string; // ISO
-  consecutiveFails: number;
-}
-
-export interface MaintenanceTask {
-  id: string;
-  code: string;
-  description: string;
-  area: MaintenanceArea;
-  frequency: MaintenanceFrequency;
-  estimatedMinutes: number;
-  conditionalRequirements?: Record<string, boolean>; 
-  requiresPhoto?: boolean;
-  requiresMeasurement?: boolean;
-  measurementUnit?: string;
-  dayOfWeek?: number; 
-  weekParity?: 'odd' | 'even' | 'both';
-  requiresSupervisorCheck?: boolean;
-  requiresTcrMethod?: boolean;
-  tcrWidthMeters?: number;
-  requiresTimeLogging?: boolean;
-  triggerEvents?: string[];
-  vineyardPhase?: string;
-  requiresManagementInstruction?: boolean;
-  category?: 'vineyard' | 'general';
-  weatherConstraints?: {
-    maxWindSpeed?: number;
-    maxTemp?: number;
-    noRain?: boolean;
-  };
-  measurementsRequired?: ('shoot_length' | 'grass_height' | 'area')[];
-  ppeRequired?: string[];
-}
-
-export interface AssignedTask {
-  id: string;
-  templateId?: string;
-  title: string;
-  description: string;
-  priority: TaskPriority;
-  assignedTo: string; 
-  assignedBy: string; 
-  assignedAt: string; 
-  dueDate: string; 
-  dueTime: string; 
-  machinesRequired?: MachineType[];
-  status: TaskStatus;
-  progress: number; 
-  milestones: Record<number, {
-    completedAt: string;
-    notes?: string;
-    photoUrl?: string;
-  }>;
-  completedAt?: string;
-  timeSpentMinutes?: number;
-}
-
-export interface MaintenanceLog {
-  id: string;
-  taskId: string;
-  taskCode: string;
-  userId: string;
-  date: string; 
-  status: 'completed' | 'skipped' | 'pending';
-  notes?: string;
-  photoUrl?: string;
-  measurementValue?: number;
-  measurements?: Record<string, number>;
-  timeSpentHours?: number;
-  gasBottleData?: {
-    bottleId: string;
-    currentWeight: number;
-    valveCondition: 'good' | 'needs_attention' | 'replace';
-    hoseCondition: 'good' | 'cracked' | 'replace';
-    regulatorCondition: 'good' | 'faulty' | 'replace';
-    leakTestResult: 'no_leaks' | 'minor_leak' | 'major_leak';
-  };
-  completedAt: string; 
-}
-
-// --- GAS MANAGEMENT TYPES ---
-
-export type GasTankSize = 9 | 19 | 48;
-export type GasTankPurpose = 'heater' | 'cooking' | 'both';
-export type GasTankStatus = 'in_storage' | 'in_use' | 'empty' | 'needs_refill' | 'refilling' | 'retired' | 'reserved';
-export type GasCheckAssessment = 'full' | 'adequate' | 'low' | 'critical' | 'empty';
-export type GasDepartment = 'kitchen' | 'private_areas' | 'guest_rooms';
-export type GasCheckFrequency = 'daily' | 'weekly' | 'monthly';
-
-export interface GasTank {
-  id: string;
-  serialNumber: string;
-  size: GasTankSize;
-  tareWeight: number;
-  fullWeight: number;
-  currentWeight: number;
-  status: GasTankStatus;
-  currentLocationId?: string;
-}
-
-export interface GasLocation {
-  id: string;
-  code: string; 
   name: string;
-  department: GasDepartment;
-  tankSize: GasTankSize;
-  priority: number;
-  isAlwaysActive: boolean;
-  checkFrequency: GasCheckFrequency;
-  lastChecked?: string; 
-  nextCheckDue?: string; 
-  currentTankId?: string;
-  currentTank?: GasTank; 
+  status: RoomStatus;
+  cleaningStatus: CleaningStatus;
+  assignedAttendantId?: string;
+  guestId?: string;
+  checkInDate: string;
+  checkOutDate: string;
+  dinnerIncluded: boolean;
+  extraBed: boolean;
+  babyCot: boolean;
+  minibarBalance: number;
+  lastCleaned?: string;
+  inspectedBy?: string;
 }
-
-export interface GasCheckRecord {
-  id: string;
-  date: string;
-  checkedBy: string;
-  locationId: string;
-  tankId: string;
-  measuredWeight: number;
-  tareWeight: number;
-  fullWeight: number;
-  remainingGas: number;
-  percentage: number;
-  assessment: GasCheckAssessment;
-  actionRequired: string;
-  notes?: string;
-  photoUrl?: string;
-}
-
-// --- OCCUPANCY & HOUSEKEEPING TYPES ---
-
-export type RoomStatusType = 'vacant' | 'occupied' | 'check_in_today' | 'check_out_today' | 'stay_over' | 'out_of_order' | 'cleaning_in_progress' | 'cleaned';
-export type CleaningStatusType = 'not_cleaned' | 'cleaning_in_progress' | 'cleaned' | 'inspected' | 'failed_inspection';
 
 export interface Guest {
   id: string;
   name: string;
-  email?: string;
   numberOfAdults: number;
   numberOfChildren: number;
   childrenDetails?: { name: string; age: number }[];
@@ -378,43 +312,25 @@ export interface Guest {
   specialRequests?: string;
 }
 
-export interface RoomOccupancy {
-  id: string;
-  name: string; 
-  status: RoomStatusType;
-  cleaningStatus: CleaningStatusType;
-  assignedAttendantId?: string;
-  guestId?: string;
-  checkInDate: string; 
-  checkOutDate: string; 
-  dinnerIncluded: boolean;
-  extraBed: boolean;
-  babyCot: boolean;
-  minibarBalance: number;
-  lastCleaned?: string; 
-  inspectedBy?: string;
-}
-
 export interface HotelEvent {
   id: string;
   name: string;
-  type: 'wedding' | 'conference' | 'business_lunch' | 'private_dinner' | 'other';
+  type: string;
   date: string;
   startTime: string;
   endTime: string;
   guestCount: number;
   location: string;
-  status: 'confirmed' | 'in_progress' | 'completed';
+  status: string;
 }
 
 export interface CleaningChecklistItem {
   id: string;
-  itemCode: string;
-  category: 'bedroom' | 'bathroom' | 'living_area' | 'kitchenette' | 'outside' | 'safety' | 'amenities' | 'minibar' | 'pool_area';
+  category: string;
   subcategory: string;
+  itemCode: string;
   description: string;
   isCritical: boolean;
-  completed?: boolean; 
 }
 
 export interface MinibarItem {
@@ -427,57 +343,16 @@ export interface MinibarItem {
 export interface MinibarInventory {
   itemId: string;
   currentStock: number;
-  consumed: number; 
+  consumed: number;
 }
 
-export interface RoomAttendantTask {
-  roomId: string;
-  roomName: string;
-  priority: 'high' | 'medium' | 'low'; 
-  status: CleaningStatusType;
-  occupancyStatus: RoomStatusType;
-  guest?: Guest;
-  checklistProgress: number; 
-  startTime?: string;
-}
-
-// --- DASHBOARD CARDS ---
-
-export type CardType = 'occupancy' | 'hours_this_week' | 'overtime_balance' | 'leave_days' | 'next_shift' | 'staff_on_duty' | 'events_today' | 'sop_status' | 'time_clock' | 'rooms_pending' | 'weekly_summary';    
-
-export interface CardExpandedContent {
-  occupancy?: { rooms: any[]; checkInsToday: any[]; checkOutsToday: any[]; stayOvers: any[]; occupancyTrend: any[]; revenueProjection: any; };
-  hoursThisWeek?: { dailyHours: any[]; projectHours: any; overtimeForecast: any; laborCost: any; departmentBreakdown: any[]; };
-  overtimeBalance?: any;
-  leaveDays?: any;
-  nextShift?: any;
-  staffOnDuty?: any;
-  eventsToday?: any;
-  sopStatus?: { certifications: any[]; expiringSoon: any[]; pendingTests: any[]; complianceRate: any; departmentScores: any[]; };
-  timeClock?: any;
-  roomsPending?: { rooms: any[]; priorityOrder: any[]; assignedAttendants: any[]; estimatedCompletion: any; qualityIssues: any[]; };
-}
-
-export interface InteractiveDashboardCardConfig {
-  id: string;
-  type: CardType;
-  title: string;
-  icon: string | React.ReactNode;
-  currentValue: string | number;
-  subValue?: string;
-  status: 'normal' | 'warning' | 'critical' | 'success';
-  isExpandable: boolean;
-}
-
-// --- ROOM ATTENDANT CARDS ---
-
-export type RoomAttendantCardType = 'assigned' | 'in_progress' | 'completed' | 'priority' | 'inspected' | 'attendants' | 'supplies' | 'quality';
+export type RoomAttendantCardType = 'assigned' | 'completed' | 'priority' | 'inspected' | 'attendants';
 
 export interface RoomAttendantCardConfig {
   id: string;
   type: RoomAttendantCardType;
   title: string;
-  icon: React.ReactNode;
+  icon: any;
   count: number;
   subText: string;
   backgroundColor: string;
@@ -489,15 +364,15 @@ export interface RoomAttendantCardConfig {
 export interface AssignedRoom {
   id: string;
   name: string;
-  priorityLevel: number;
   cleaningType: string;
   attendantName: string;
-  attendantStatus: 'active' | 'on_break' | 'inactive';
+  attendantStatus: string;
   assignedByName: string;
-  assignedAt: string; 
+  assignedAt: string;
   estimatedMinutes: number;
-  scheduledStart: string; 
+  scheduledStart: string;
   status: string;
+  priorityLevel: number;
 }
 
 export interface AssignedAttendant {
@@ -509,16 +384,7 @@ export interface AssignedAttendant {
   roomsCompleted: number;
   averageTime: number;
   qualityScore: number;
-  currentRooms: { id: string; name: string; estimatedTime: number }[];
   workloadPercentage: number;
-}
-
-export interface ShiftCoverage {
-  shiftId: string;
-  startTime: string;
-  endTime: string;
-  coverageRate: number;
-  attendants: { id: string; name: string; rooms: number }[];
 }
 
 export interface CompletedRoom {
@@ -555,8 +421,77 @@ export interface Escalation {
 }
 
 export interface RoomAttendantExpandedData {
-  assigned?: { rooms: AssignedRoom[]; attendants: AssignedAttendant[]; timeAllocation: any[]; shiftCoverage: ShiftCoverage[]; };
-  completed?: { rooms: CompletedRoom[]; attendants: any[]; timeMetrics: any[]; qualityScores: any[]; };
-  priority?: { rooms: PriorityRoom[]; reasons: { type: string; count: number; icon: React.ReactNode }[]; deadlines: any[]; escalations: Escalation[]; };
-  inspected?: { summary: any; };
+  assigned?: {
+    rooms: AssignedRoom[];
+    attendants: AssignedAttendant[];
+    timeAllocation: any[];
+    shiftCoverage: any[];
+  };
+  completed?: {
+    rooms: CompletedRoom[];
+    attendants: AssignedAttendant[];
+    timeMetrics: { actualMinutes: number; onTime: boolean }[];
+    qualityScores: { score: number }[];
+  };
+  priority?: {
+    rooms: PriorityRoom[];
+    reasons: { type: string, count: number, icon: any }[];
+    deadlines: any[];
+    escalations: Escalation[];
+  };
+  inspected?: {
+    summary: any;
+  };
+}
+
+// GAS MODULE TYPES
+export interface GasTank {
+  id: string;
+  serialNumber: string;
+  size: number;
+  tareWeight: number;
+  fullWeight: number;
+  currentWeight: number;
+  status: 'in_use' | 'reserved' | 'empty';
+  currentLocationId: string;
+}
+
+export interface GasLocation {
+  id: string;
+  code: string;
+  name: string;
+  department: string;
+  tankSize: number;
+  priority: number;
+  isAlwaysActive: boolean;
+  checkFrequency: 'weekly' | 'monthly';
+  lastChecked: string;
+  nextCheckDue: string;
+  currentTankId: string;
+  currentTank?: GasTank;
+}
+
+export type GasCheckAssessment = 'empty' | 'low' | 'adequate' | 'full';
+
+export interface GasCheckRecord {
+  id: string;
+  date: string;
+  checkedBy: string;
+  locationId: string;
+  tankId: string;
+  measuredWeight: number;
+  tareWeight: number;
+  fullWeight: number;
+  remainingGas: number;
+  percentage: number;
+  assessment: GasCheckAssessment;
+  actionRequired: string;
+  photoUrl?: string;
+}
+
+// VISUALS
+export interface DepartmentVisualConfig {
+  color: string;
+  icon: string;
+  bgLight: string;
 }
